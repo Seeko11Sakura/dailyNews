@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ZERO - Soft Sky Blue (#1296db)</title>
+    <style>
+        /* ==========================================================================
+           核心系统：Soft Glass 变量 (纯白 + #1296db)
+           ========================================================================== */
+        :root {
+            /* 主题色：#1296db */
+            --theme-primary: #1296db; 
+            --theme-primary-soft: rgba(18, 150, 219, 0.12);
+            --theme-glow: rgba(18, 150, 219, 0.35);
+            
+            /* 背景：纯白到极淡冰蓝色的微渐变 */
+            --theme-bg: linear-gradient(135deg, #FFFFFF 0%, #F5FAFF 50%, #E8F4FF 100%);
+            
+            /* 毛玻璃参数 */
+            --glass-bg: rgba(255, 255, 255, 0.7);
+            --glass-bg-solid: rgba(255, 255, 255, 0.9);
+            --glass-border: 1px solid rgba(255, 255, 255, 0.9);
+            --glass-shadow: 0 12px 36px rgba(18, 150, 219, 0.08), inset 0 1px 0 rgba(255, 255, 255, 1);
+            
+            --text-main: #2A313C; 
+            --text-sub: #7A8599;
+            --white: #FFFFFF;
+            --card-inner-bg: rgba(255, 255, 255, 0.6);
+
+            /* 圆角与间距 */
+            --bento-gap: 16px;
+            --radius-xl: 32px;
+            --radius-lg: 24px;
+            --radius-md: 16px;
+            --radius-pill: 100px;
+            
+            --font-main: "SF Pro Rounded", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        /* 深色模式变量：深灰蓝调适配 */
+        body.dark-mode {
+            --theme-primary: #2ab0f5;
+            --theme-primary-soft: rgba(42, 176, 245, 0.15);
+            --theme-glow: rgba(42, 176, 245, 0.2);
+            
+            --theme-bg: linear-gradient(135deg, #10141A 0%, #161D29 50%, #121822 100%);
+            
+            --glass-bg: rgba(30, 35, 45, 0.55);
+            --glass-bg-solid: rgba(25, 30, 40, 0.9);
+            --glass-border: 1px solid rgba(255, 255, 255, 0.08);
+            --glass-shadow: 0 12px 36px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+            
+            --text-main: #F0F4F8;
+            --text-sub: #9AA5B8;
+            --white: #242A38; 
+            --card-inner-bg: rgba(0, 0, 0, 0.25);
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
+        
+        body { 
+            font-family: var(--font-main); 
+            background: #111; 
+            color: var(--text-main); 
+            overflow: hidden; 
+            -webkit-font-smoothing: antialiased;
+            transition: color 0.4s ease;
+        }
+
+        #app-container {
+            width: 100%; max-width: 414px; height: 100vh; margin: 0 auto;
+            background: var(--theme-bg); background-size: 200% 200%;
+            animation: gradientMove 15s ease infinite; position: relative;
+            display: flex; flex-direction: column; overflow: hidden;
+            box-shadow: 0 0 40px rgba(0,0,0,0.2); transition: background 0.6s ease;
+        }
+
+        @keyframes gradientMove {
+            0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; }
+        }
+
+        .bento-glass {
+            background: var(--glass-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border: var(--glass-border); box-shadow: var(--glass-shadow); border-radius: var(--radius-lg); transition: all 0.4s ease;
+        }
+
+        button { font-family: var(--font-main); border: none; cursor: pointer; outline: none; }
+
+        .screen { display: none; flex: 1; flex-direction: column; height: 100%; overflow: hidden; }
+        .screen.active { display: flex; }
+        .tab-content { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+        .tab-content.active { display: flex; }
+
+        /* 引导页 */
+        #onboarding { padding: 50px 24px; position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 100; background: var(--theme-bg); transition: background 0.4s;}
+        .ob-header { font-size: 34px; font-weight: 800; margin-bottom: 16px; color: var(--theme-primary); letter-spacing: -1px; }
+        .ob-sub { font-size: 16px; color: var(--text-sub); margin-bottom: 40px; line-height: 1.6; font-weight: 500; }
+        
+        .bento-grid-ob { display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: minmax(90px, auto); gap: var(--bento-gap); margin-bottom: 40px; }
+        .cat-btn { border-radius: var(--radius-xl); padding: 20px 16px; font-size: 16px; font-weight: 700; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 8px; color: var(--text-main); transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); }
+        .cat-btn:nth-child(1) { grid-column: span 2; padding: 28px; font-size: 20px;}
+        .cat-btn:active { transform: scale(0.95); }
+        .cat-btn.selected { background: var(--theme-primary); color: #FFF; border-color: transparent; box-shadow: 0 16px 32px var(--theme-glow); }
+        .start-btn { background: var(--theme-primary); color: #FFF; padding: 20px; font-size: 18px; font-weight: 700; width: 100%; border-radius: var(--radius-pill); opacity: 0.4; pointer-events: none; transition: all 0.4s; box-shadow: 0 12px 32px var(--theme-glow); }
+        .start-btn.active { opacity: 1; pointer-events: auto; transform: translateY(-4px); }
+
+        /* 主界面头部 */
+        header { margin: 40px 20px 10px; padding: 16px 24px; border-radius: var(--radius-pill); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; z-index: 10; transition: opacity 0.4s;}
+        .header-title-box h1 { font-size: 20px; font-weight: 800; color: var(--theme-primary); margin-bottom: 4px;}
+        .progress-wrapper { display: flex; align-items: center; gap: 10px; }
+        .progress-container { width: 100px; height: 6px; background: rgba(128,128,128,0.2); border-radius: 3px; overflow: hidden; }
+        .progress-bar { height: 100%; background: var(--theme-primary); width: 0%; border-radius: 3px; transition: width 0.5s; }
+        .progress-text { font-size: 12px; font-weight: 700; color: var(--text-sub); }
+
+        .theme-toggle-btn { width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 20px; color: var(--text-main); background: var(--glass-bg); border: var(--glass-border); box-shadow: var(--glass-shadow); }
+
+        /* 底部导航 */
+        nav { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); width: calc(100% - 80px); height: 70px; border-radius: var(--radius-pill); display: flex; justify-content: space-around; align-items: center; z-index: 20; padding: 0 10px; }
+        .nav-item { width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.3s; color: var(--text-sub); }
+        .nav-item.active { background: var(--theme-primary); color: #FFF; box-shadow: 0 8px 24px var(--theme-glow); transform: translateY(-4px); }
+        .nav-icon { font-size: 22px; }
+
+        /* 今日简报 */
+        #content-today { padding-bottom: 120px; }
+        #today-matrix { flex: 1; width: 100%; overflow-y: scroll; scroll-snap-type: y mandatory; scrollbar-width: none; }
+        #today-matrix::-webkit-scrollbar { display: none; }
+
+        .category-row { height: 100%; width: 100%; scroll-snap-align: start; scroll-snap-stop: always; overflow-x: scroll; scroll-snap-type: x mandatory; display: flex; flex-direction: row; scrollbar-width: none; }
+        .category-row::-webkit-scrollbar { display: none; }
+        .article-slide { flex: 0 0 100%; width: 100%; height: 100%; scroll-snap-align: start; scroll-snap-stop: always; padding: 10px 20px 20px; display: flex; flex-direction: column; overflow-y: auto; }
+
+        .article-wrapper { flex: 1; display: flex; flex-direction: column; gap: var(--bento-gap); transition: opacity 0.4s; }
+        .article-wrapper.read { opacity: 0.5; filter: grayscale(50%); }
+
+        .unified-main-card { padding: 24px; border-radius: var(--radius-xl); flex: 1; display: flex; flex-direction: column; }
+        .card-top-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+        .cat-tag { font-size: 14px; font-weight: 800; color: var(--theme-primary); background: var(--theme-primary-soft); padding: 6px 12px; border-radius: 8px;}
+        .index-tag { font-size: 14px; font-weight: 700; color: var(--text-sub); }
+
+        .article-title { font-size: 22px; font-weight: 800; line-height: 1.45; color: var(--text-main); margin-bottom: 16px;}
+        .article-meta { font-size: 13px; font-weight: 600; color: var(--text-sub); display: flex; gap: 12px; margin-bottom: 24px;}
+
+        .conclusion-box { background: var(--card-inner-bg); border-radius: var(--radius-lg); padding: 20px; border: 1px solid rgba(255,255,255,0.3); flex: 1; display: flex; flex-direction: column; }
+        .conclusion-label { font-size: 13px; color: var(--theme-primary); font-weight: 800; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;}
+        .conclusion-text { font-size: 15px; line-height: 1.6; color: var(--text-main); font-weight: 500;}
+
+        .bento-actions-box { display: grid; grid-template-columns: 1fr 1fr; gap: var(--bento-gap); height: 60px; flex-shrink: 0;}
+        .btn-action { border-radius: var(--radius-lg); font-size: 15px; font-weight: 700; color: var(--text-main); transition: all 0.2s;}
+        .btn-action:active { transform: scale(0.96); }
+        .btn-action.primary { background: var(--theme-primary); color: var(--white); box-shadow: 0 8px 24px var(--theme-glow); border: none;}
+
+        .swipe-hint { text-align: center; font-size: 12px; color: var(--text-sub); margin-top: 8px; font-weight: 700; opacity: 0.5; padding-bottom: 10px;}
+        .zero-state { display: none; text-align: center; padding: 60px 20px; margin: 20px; border-radius: var(--radius-xl); }
+        .zero-state h2 { font-size: 28px; color: var(--theme-primary); margin-bottom: 12px; font-weight: 800;}
+
+        /* 抽卡探索 */
+        #content-explore { padding-bottom: 120px; overflow-y: auto; }
+        
+        .explore-horizontal-scroll { display: flex; gap: 20px; padding: 20px 24px 24px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
+        .explore-horizontal-scroll::-webkit-scrollbar { display: none; }
+
+        .explore-card { flex-shrink: 0; min-width: 280px; width: 85%; scroll-snap-align: center; padding: 24px; display: flex; flex-direction: column; border-radius: var(--radius-xl); box-shadow: var(--glass-shadow); }
+        .explore-reason { font-size: 12px; font-weight: 700; color: var(--theme-primary); margin-bottom: 16px; background: var(--theme-primary-soft); display: inline-block; padding: 6px 12px; border-radius: 8px; align-self: flex-start;}
+        .explore-topic { font-size: 24px; font-weight: 800; color: var(--text-main); margin-bottom: 16px; line-height: 1.2;}
+        .explore-preview { font-size: 14px; color: var(--text-sub); margin-bottom: 32px; line-height: 1.6; flex: 1; background: var(--card-inner-bg); padding: 16px; border-radius: var(--radius-md);}
+        
+        .btn-follow { width: 100%; padding: 16px; background: var(--theme-primary); color: var(--white); border-radius: var(--radius-pill); font-weight: 700; font-size: 15px; margin-top: auto; transition: all 0.3s;}
+        .btn-follow:disabled { background: var(--glass-bg-solid); color: var(--text-sub); box-shadow: none; border: 1px solid rgba(0,0,0,0.05); }
+
+        /* 存档页 */
+        #content-saved { padding-bottom: 120px; overflow-y: auto; }
+
+        /* 阅读页 Modal */
+        #reader-modal { position: absolute; top: 100%; left: 0; width: 100%; height: 100%; background: var(--glass-bg-solid); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); z-index: 50; transition: top 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); display: flex; flex-direction: column; border-radius: 40px 40px 0 0; box-shadow: 0 -20px 60px rgba(0,0,0,0.1); border: var(--glass-border); }
+        #reader-modal.open { top: 40px; height: calc(100% - 40px); }
+        .reader-handle { width: 48px; height: 6px; background: rgba(128,128,128,0.2); border-radius: 3px; margin: 16px auto; }
+        .reader-header { display: flex; justify-content: flex-end; padding: 0 24px 16px; }
+        .btn-close-modal { width: 40px; height: 40px; background: rgba(128,128,128,0.1); border-radius: 50%; display: flex; justify-content: center; align-items: center; color: var(--text-main); font-weight: 800; font-size: 18px;}
+        
+        .reader-content { padding: 0 24px 40px; overflow-y: auto; flex: 1; }
+        .reader-title { font-size: 24px; font-weight: 800; margin-bottom: 24px; line-height: 1.4; color: var(--text-main);}
+        .reader-conclusion { background: var(--theme-primary-soft); border-radius: var(--radius-lg); padding: 20px; font-size: 15px; margin-bottom: 32px; border: 1px solid rgba(255,255,255,0.4);}
+        .reader-body { font-size: 17px; line-height: 1.8; color: var(--text-sub); font-weight: 500;}
+        .reader-body p { margin-bottom: 24px; }
+
+    </style>
+</head>
+<body>
+
+<div id="app-container">
+
+    <!-- 1. 引导页 -->
+    <div id="onboarding" class="screen active">
+        <div class="ob-header">定制边界</div>
+        <div class="ob-sub">选择你的核心领域。每天 10 分钟清零，隔绝算法噪音。</div>
+        <div class="bento-grid-ob" id="category-grid"></div>
+        <button class="start-btn" id="start-btn" onclick="startApp()">开启清零之旅</button>
+    </div>
+
+    <!-- 2. 主应用层 -->
+    <div id="main-app" class="screen">
+        
+        <!-- 统一的全局顶部悬浮头 -->
+        <header class="bento-glass" id="main-header">
+            <div class="header-title-box">
+                <h1 id="header-title">今日简报</h1>
+                <div id="today-progress" class="progress-wrapper">
+                    <div class="progress-container"><div class="progress-bar" id="progress-bar"></div></div>
+                    <div class="progress-text"><span id="read-count">0</span>/<span id="total-count">0</span></div>
+                </div>
+            </div>
+            <!-- 深浅色切换按钮 -->
+            <button class="theme-toggle-btn" id="theme-toggle-btn" onclick="toggleDarkMode()">🌙</button>
+        </header>
+
+        <!-- Tab 1: 今日简报 (统一卡片矩阵) -->
+        <div id="content-today" class="tab-content active">
+            <div id="zero-state" class="zero-state bento-glass">
+                <div style="font-size: 56px; margin-bottom: 20px;">🎉</div>
+                <h2>今日已清零</h2>
+                <p>极简阅读，保持清醒。<br>去享受真实的生活吧。</p>
+            </div>
+            <div id="today-matrix">
+                <!-- JS 动态渲染 -->
+            </div>
+        </div>
+
+        <!-- Tab 2: 抽卡探索 (横向滑动排列，去除了内部重复的标题) -->
+        <div id="content-explore" class="tab-content">
+            <div class="explore-horizontal-scroll">
+                <div class="explore-card bento-glass">
+                    <span class="explore-reason">因为关注【人工智能】</span>
+                    <div class="explore-topic">教育与学习</div>
+                    <div class="explore-preview">GPT 助教系统体验评估报告：深度探讨大模型在基础教育中的低成本落地可行性。</div>
+                    <button class="btn-follow" onclick="followCategory('edu', this)">添加到主页</button>
+                </div>
+                
+                <div class="explore-card bento-glass">
+                    <span class="explore-reason">因为关注【科技】</span>
+                    <div class="explore-topic">生活方式</div>
+                    <div class="explore-preview">逃离算法推荐：年轻人的数字极简主义正在成为新趋势，重新夺回时间掌控权。</div>
+                    <button class="btn-follow" onclick="followCategory('life', this)">添加到主页</button>
+                </div>
+                
+                <div class="explore-card bento-glass">
+                    <span class="explore-reason">因为关注【商业】</span>
+                    <div class="explore-topic">宏观经济</div>
+                    <div class="explore-preview">2026 全球供应链重组下的赢家前瞻，以及最新央行政策对终端消费市场的实质影响分析。</div>
+                    <button class="btn-follow" onclick="followCategory('econ', this)">添加到主页</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 3: 收藏 (去除了内部重复的标题) -->
+        <div id="content-saved" class="tab-content">
+            <div style="padding: 24px;">
+                <div class="bento-glass" style="padding: 50px 20px; text-align: center; border-radius: var(--radius-xl);">
+                    <div style="font-size: 48px; margin-bottom: 16px;">🗂️</div>
+                    <div style="font-weight: 800; font-size: 18px; color: var(--text-main);">您的沉淀空间</div>
+                    <div style="font-size: 14px; margin-top: 10px; color: var(--text-sub);">文章存档支持跨设备云同步</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 底部导航 -->
+        <nav class="bento-glass">
+            <div class="nav-item active" onclick="switchTab('today', this)"><div class="nav-icon">📰</div></div>
+            <div class="nav-item" onclick="switchTab('explore', this)"><div class="nav-icon">🔮</div></div>
+            <div class="nav-item" onclick="switchTab('saved', this)"><div class="nav-icon">🔖</div></div>
+        </nav>
+    </div>
+
+    <!-- 3. 全文阅读 Modal -->
+    <div id="reader-modal">
+        <div class="reader-handle"></div>
+        <div class="reader-header"><button class="btn-close-modal" onclick="closeReader()">✕</button></div>
+        <div class="reader-content">
+            <h1 class="reader-title" id="r-title">标题</h1>
+            <div class="reader-conclusion" id="r-conclusion">结论文本</div>
+            <div class="reader-body" id="r-body">
+                <p>这里是底层按需抓取的文章正文区域。我们精简了排版，仅保留纯净文字与必要的段落层级。</p>
+                <p>深色模式下，背景将自动压暗，保护眼睛。如果当前页面无法完全解析，您可以随时点击下方按钮一键前往原文站点。</p>
+            </div>
+            <button class="start-btn active" style="width: 100%; border-radius: var(--radius-pill); margin-top: 20px;">一键直达原文站</button>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // 深浅色模式切换
+    function toggleDarkMode() {
+        document.body.classList.toggle('dark-mode');
+        const btn = document.getElementById('theme-toggle-btn');
+        btn.innerText = document.body.classList.contains('dark-mode') ? '☀️' : '🌙';
+    }
+
+    // 数据定义：补齐探索页所需的扩展类别
+    const categories = [
+        { id: 'tech', name: '💻 科技', emoji: '💻' }, { id: 'ai', name: '🤖 AI', emoji: '🤖' },
+        { id: 'biz', name: '💼 商业', emoji: '💼' }, { id: 'gadget', name: '📱 数码', emoji: '📱' },
+        { id: 'work', name: '🚀 职场', emoji: '🚀' }, { id: 'society', name: '🌍 社会', emoji: '🌍' },
+        // 探索隐藏类别
+        { id: 'edu', name: '📚 教育', emoji: '📚' }, { id: 'life', name: '☕ 生活', emoji: '☕' },
+        { id: 'econ', name: '📈 宏观', emoji: '📈' }
+    ];
+
+    let selectedCategories = [];
+    let generatedArticles = []; 
+    let totalArticles = 0;
+    let readArticles = 0;
+
+    function generateMockData() {
+        generatedArticles = [];
+        let globalId = 1;
+        selectedCategories.forEach(catId => {
+            const catInfo = categories.find(c => c.id === catId);
+            for(let i = 1; i <= 10; i++) {
+                generatedArticles.push({
+                    id: globalId++, cat: catId, catName: catInfo.name, index: i,
+                    title: `【${catInfo.name.substring(3)}】今日第 ${i} 条重要资讯核心速报`,
+                    conclusion: `这是第 ${i} 条资讯的精炼概要。<br>清新的 #1296db 配色搭配玻璃拟态，能在清晨或闲暇阅读时为你带来愉悦、专注的沉浸感。`,
+                    source: i % 2 === 0 ? '主流媒体' : '深度专栏', time: `今日 ${8 + (i%5)}:00 AM`, read: false
+                });
+            }
+        });
+    }
+
+    // 引导页逻辑
+    function initOnboarding() {
+        const grid = document.getElementById('category-grid');
+        // 只展示基础的6个领域给新用户
+        categories.slice(0, 6).forEach(cat => {
+            const btn = document.createElement('button');
+            btn.className = 'cat-btn bento-glass'; 
+            btn.innerHTML = `<span style="font-size: 24px;">${cat.emoji}</span><span>${cat.name.substring(3)}</span>`;
+            btn.onclick = () => toggleCategory(cat.id, btn);
+            grid.appendChild(btn);
+        });
+    }
+
+    function toggleCategory(id, btnElement) {
+        const index = selectedCategories.indexOf(id);
+        if (index > -1) {
+            selectedCategories.splice(index, 1);
+            btnElement.classList.remove('selected');
+        } else {
+            if (selectedCategories.length < 5) {
+                selectedCategories.push(id);
+                btnElement.classList.add('selected');
+            } else { alert('极致极简：最多订阅 5 个领域'); }
+        }
+        
+        const startBtn = document.getElementById('start-btn');
+        if (selectedCategories.length >= 1) { 
+            startBtn.classList.add('active');
+            startBtn.innerText = `进入简报 (${selectedCategories.length}/5)`;
+        } else {
+            startBtn.classList.remove('active');
+            startBtn.innerText = '开启清零之旅';
+        }
+    }
+
+    function startApp() {
+        document.getElementById('onboarding').classList.remove('active');
+        document.getElementById('main-app').classList.add('active');
+        generateMockData(); 
+        renderTodayMatrix();
+    }
+
+    // ====== 动态添加新领域逻辑 ======
+    function followCategory(catId, btnElement) {
+        if (selectedCategories.includes(catId)) return; // 防重
+        if (selectedCategories.length >= 5) {
+            alert('最多只能保留 5 个领域，以防陷入信息黑洞。');
+            return;
+        }
+
+        selectedCategories.push(catId);
+        
+        let globalId = Date.now(); 
+        const catInfo = categories.find(c => c.id === catId);
+        for(let i = 1; i <= 10; i++) {
+            generatedArticles.push({
+                id: globalId++, cat: catId, catName: catInfo.name, index: i,
+                title: `【${catInfo.name.substring(3)}】探索发现第 ${i} 条特供内容`,
+                conclusion: `这是您刚刚从“领域探索”中添加的新增领域资讯。<br>打破信息茧房，每天发现一点新世界。`,
+                source: '探索推荐', time: `刚刚`, read: false
+            });
+        }
+        
+        renderTodayMatrix();
+        
+        btnElement.innerText = '✅ 已添加到主页';
+        btnElement.disabled = true;
+
+        alert(`【${catInfo.name.substring(3)}】已成功添加入今日简报矩阵！\n您可以点击下方📰图标返回查看。`);
+    }
+
+    // 渲染今日简报
+    function renderTodayMatrix() {
+        const matrixContainer = document.getElementById('today-matrix');
+        matrixContainer.innerHTML = '';
+        
+        totalArticles = generatedArticles.length;
+        readArticles = generatedArticles.filter(a => a.read).length;
+
+        selectedCategories.forEach((catId, catIndex) => {
+            const catArticles = generatedArticles.filter(a => a.cat === catId);
+            if (catArticles.length === 0) return;
+
+            const row = document.createElement('div');
+            row.className = 'category-row';
+            row.id = `row-${catId}`;
+
+            catArticles.forEach((art, artIndex) => {
+                const slide = document.createElement('div');
+                slide.className = 'article-slide';
+                slide.id = `slide-${art.id}`;
+                
+                let swipeHint = artIndex < 9 ? '👈 向左划查看下一条' : (catIndex < selectedCategories.length - 1 ? '👆 向上划看新领域' : '🎉 今日全部看完');
+
+                let readClass = art.read ? 'read' : '';
+                let btnText = art.read ? '已完成' : '✅ 完成';
+
+                slide.innerHTML = `
+                    <div class="article-wrapper ${readClass}" id="wrapper-${art.id}">
+                        <div class="unified-main-card bento-glass">
+                            <div class="card-top-bar">
+                                <span class="cat-tag">${art.catName}</span>
+                                <span class="index-tag">${art.index} / 10</span>
+                            </div>
+                            <div class="article-title">${art.title}</div>
+                            <div class="article-meta"><span>${art.source}</span><span>•</span><span>${art.time}</span></div>
+                            <div class="conclusion-box">
+                                <div class="conclusion-label">✨ 结论速读</div>
+                                <div class="conclusion-text">${art.conclusion}</div>
+                            </div>
+                        </div>
+                        <div class="bento-actions-box">
+                            <button class="btn-action bento-glass" onclick="openReader(${art.id})">阅读全文</button>
+                            <button class="btn-action primary" id="btn-read-${art.id}" onclick="markReadAndNext(${art.id}, '${catId}', ${artIndex})">${btnText}</button>
+                        </div>
+                        <div class="swipe-hint">${swipeHint}</div>
+                    </div>
+                `;
+                row.appendChild(slide);
+            });
+            matrixContainer.appendChild(row);
+        });
+        
+        updateProgress();
+    }
+
+    function markReadAndNext(id, catId, currentIndex) {
+        const article = generatedArticles.find(a => a.id === id);
+        
+        if(!article.read) {
+            article.read = true;
+            document.getElementById(`wrapper-${id}`).classList.add('read');
+            document.getElementById(`btn-read-${id}`).innerText = '已完成';
+            readArticles++;
+            updateProgress();
+        }
+
+        const catArticles = generatedArticles.filter(a => a.cat === catId);
+        if (currentIndex < catArticles.length - 1) {
+            document.getElementById(`slide-${catArticles[currentIndex + 1].id}`).scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        } else {
+            const currentCatIndex = selectedCategories.indexOf(catId);
+            if(currentCatIndex < selectedCategories.length - 1) {
+                document.getElementById(`row-${selectedCategories[currentCatIndex + 1]}`).scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+    }
+
+    function updateProgress() {
+        document.getElementById('read-count').innerText = readArticles;
+        document.getElementById('total-count').innerText = totalArticles;
+        const percentage = totalArticles === 0 ? 0 : (readArticles / totalArticles) * 100;
+        document.getElementById('progress-bar').style.width = `${percentage}%`;
+
+        if (readArticles === totalArticles && totalArticles > 0) {
+            document.getElementById('today-matrix').style.display = 'none';
+            document.getElementById('zero-state').style.display = 'block';
+            document.getElementById('main-header').style.opacity = '0.5'; 
+        } else {
+            document.getElementById('today-matrix').style.display = 'block';
+            document.getElementById('zero-state').style.display = 'none';
+            document.getElementById('main-header').style.opacity = '1'; 
+        }
+    }
+
+    // 阅读页
+    function openReader(id) {
+        const article = generatedArticles.find(a => a.id === id);
+        document.getElementById('r-title').innerText = article.title;
+        document.getElementById('r-conclusion').innerHTML = `<div style="color:var(--theme-primary); font-weight:800; font-size:13px; margin-bottom:8px;">✨ 结论回顾</div>${article.conclusion}`;
+        document.getElementById('reader-modal').classList.add('open');
+        
+        if(!article.read) {
+            article.read = true;
+            document.getElementById(`wrapper-${id}`).classList.add('read');
+            document.getElementById(`btn-read-${id}`).innerText = '已完成';
+            readArticles++;
+            updateProgress();
+        }
+    }
+    function closeReader() { document.getElementById('reader-modal').classList.remove('open'); }
+
+    // 导航切换
+    function switchTab(tabId, el) {
+        document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+        el.classList.add('active');
+        
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+        document.getElementById(`content-${tabId}`).classList.add('active');
+
+        const titles = { 'today': '今日简报', 'explore': '领域探索', 'saved': '知识存档' };
+        document.getElementById('header-title').innerText = titles[tabId];
+        document.querySelector('.progress-wrapper').style.display = tabId === 'today' ? 'flex' : 'none';
+    }
+
+    initOnboarding();
+
+</script>
+
+</body>
+</html>
