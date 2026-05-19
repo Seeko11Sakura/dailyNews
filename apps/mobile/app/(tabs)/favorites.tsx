@@ -1,9 +1,5 @@
-import { Text, View } from 'react-native';
+import { FavoritesScreen } from '../../src/features/favorites/FavoritesScreen';
 
 export default function FavoritesRoute() {
-  return (
-    <View>
-      <Text>收藏</Text>
-    </View>
-  );
+  return <FavoritesScreen />;
 }

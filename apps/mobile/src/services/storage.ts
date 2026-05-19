@@ -15,3 +15,7 @@ export async function loadSelectedDomains(): Promise<string[]> {
   const parsed = JSON.parse(raw);
   return Array.isArray(parsed) ? parsed : [];
 }
+
+export async function clearCache() {
+  await AsyncStorage.removeItem(SELECTED_DOMAINS_KEY);
+}

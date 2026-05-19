@@ -1,9 +1,5 @@
-import { Text, View } from 'react-native';
+import { TodayScreen } from '../../src/features/today/TodayScreen';
 
 export default function TodayRoute() {
-  return (
-    <View>
-      <Text>今日</Text>
-    </View>
-  );
+  return <TodayScreen />;
 }

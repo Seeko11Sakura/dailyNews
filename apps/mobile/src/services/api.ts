@@ -1,0 +1,59 @@
+type ApiDigestItem = {
+  id: string;
+  domain_id: string;
+  title: string;
+  summary: string;
+  source: string;
+  published_at: string;
+  is_read: boolean;
+};
+
+type ApiDigestGroup = {
+  domain_id: string;
+  items: ApiDigestItem[];
+};
+
+type ApiDigestResponse = {
+  groups: ApiDigestGroup[];
+};
+
+export type ArticleDetail = {
+  id: string;
+  title: string;
+  summary: string;
+  content: string;
+  source_url: string;
+  fetch_status: string;
+};
+
+export const API_BASE_URL = 'http://127.0.0.1:8000';
+
+export async function fetchTodayDigest(
+  selectedDomains: string[]
+): Promise<ApiDigestResponse> {
+  const response = await fetch(`${API_BASE_URL}/digest/today`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      selected_domains: selectedDomains,
+      sort_preference: 'freshness',
+      date: '2026-05-19'
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error('获取今日简报失败');
+  }
+
+  return response.json();
+}
+
+export async function fetchItemDetail(itemId: string): Promise<ArticleDetail> {
+  const response = await fetch(`${API_BASE_URL}/items/${itemId}`);
+
+  if (!response.ok) {
+    throw new Error('获取文章详情失败');
+  }
+
+  return response.json();
+}

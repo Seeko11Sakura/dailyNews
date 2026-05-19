@@ -1,9 +1,5 @@
-import { Text, View } from 'react-native';
+import { SettingsScreen } from '../src/features/settings/SettingsScreen';
 
 export default function SettingsRoute() {
-  return (
-    <View>
-      <Text>设置</Text>
-    </View>
-  );
+  return <SettingsScreen />;
 }
