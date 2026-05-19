@@ -32,3 +32,24 @@ def test_article_route():
 
     assert response.status_code == 200
     assert response.json()["source_url"].startswith("https://")
+
+
+def test_explore_route():
+    response = client.post(
+        "/explore/draw",
+        json={
+            "selected_domains": ["technology", "ai", "business"],
+            "seen_domain_ids": [],
+            "date": "2026-05-19",
+        },
+    )
+
+    assert response.status_code == 200
+    assert len(response.json()["cards"]) == 3
+
+
+def test_health_route():
+    response = client.get("/healthz")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}

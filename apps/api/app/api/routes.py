@@ -3,8 +3,10 @@ from fastapi import APIRouter
 from app.schemas.article import ArticleDetail
 from app.schemas.digest import DigestRequest, DigestResponse
 from app.schemas.domain import Domain
+from app.schemas.explore import ExploreRequest, ExploreResponse
 from app.services.mock_repository import (
     get_article_detail,
+    get_explore_cards,
     get_today_digest,
     list_domains,
 )
@@ -25,3 +27,13 @@ def get_digest(payload: DigestRequest) -> DigestResponse:
 @router.get("/items/{item_id}", response_model=ArticleDetail)
 def get_item(item_id: str) -> ArticleDetail:
     return get_article_detail(item_id)
+
+
+@router.post("/explore/draw", response_model=ExploreResponse)
+def draw_explore_cards(payload: ExploreRequest) -> ExploreResponse:
+    return get_explore_cards(payload)
+
+
+@router.get("/healthz")
+def healthz() -> dict[str, str]:
+    return {"status": "ok"}

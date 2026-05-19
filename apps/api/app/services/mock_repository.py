@@ -1,6 +1,7 @@
 from app.schemas.article import ArticleDetail
 from app.schemas.digest import DigestGroup, DigestItem, DigestRequest, DigestResponse
 from app.schemas.domain import Domain
+from app.schemas.explore import ExploreCard, ExploreRequest, ExploreResponse
 
 DOMAINS = [
     Domain(id="technology", name="科技与互联网", emoji="💻"),
@@ -53,3 +54,30 @@ def get_article_detail(item_id: str) -> ArticleDetail:
         source_url="https://example.com/article",
         fetch_status="success",
     )
+
+
+def get_explore_cards(payload: ExploreRequest) -> ExploreResponse:
+    cards = [
+        ExploreCard(
+            domain_id="education",
+            domain_name="教育与学习",
+            reason="因为你关注了人工智能",
+            preview_titles=["AI 助教系统评估", "教育行业新模型", "高校课程升级"],
+        ),
+        ExploreCard(
+            domain_id="lifestyle",
+            domain_name="生活方式",
+            reason="因为你关注了科技与互联网",
+            preview_titles=["数字极简主义", "年轻人时间管理", "设备消费变化"],
+        ),
+        ExploreCard(
+            domain_id="finance",
+            domain_name="财经与宏观",
+            reason="因为你关注了商业与公司",
+            preview_titles=["宏观政策变化", "供应链调整", "消费市场分析"],
+        ),
+    ]
+    unseen_cards = [
+        card for card in cards if card.domain_id not in payload.seen_domain_ids
+    ]
+    return ExploreResponse(cards=unseen_cards[:3])
