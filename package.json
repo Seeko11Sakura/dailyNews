@@ -1,0 +1,8 @@
+{
+  "name": "daily-news",
+  "private": true,
+  "packageManager": "pnpm@10.28.1",
+  "scripts": {
+    "test:shared": "pnpm --filter @dailynews/shared test"
+  }
+}

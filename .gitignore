@@ -1,0 +1,8 @@
+node_modules/
+.pnpm-store/
+.expo/
+dist/
+coverage/
+.venv/
+__pycache__/
+.pytest_cache/
