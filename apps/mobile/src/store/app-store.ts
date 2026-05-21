@@ -5,7 +5,9 @@ import type { DomainId } from '@dailynews/shared';
 import {
   clearCache as clearPersistedCache,
   loadSelectedDomains,
-  saveSelectedDomains
+  loadThemeMode,
+  saveSelectedDomains,
+  saveThemeMode
 } from '../services/storage';
 
 export type DigestListItem = {
@@ -34,6 +36,7 @@ export type AppState = {
   setDigest: (groups: DigestGroup[]) => void;
   markItemRead: (itemId: string) => void;
   toggleFavorite: (itemId: string) => void;
+  toggleThemeMode: () => Promise<void>;
   completeOnboarding: () => Promise<void>;
   clearCache: () => Promise<void>;
   hydrate: () => Promise<void>;
@@ -42,6 +45,8 @@ export type AppState = {
 export type AppStorage = {
   loadSelectedDomains: () => Promise<string[]>;
   saveSelectedDomains: (ids: string[]) => Promise<void>;
+  loadThemeMode: () => Promise<'light' | 'dark'>;
+  saveThemeMode: (mode: 'light' | 'dark') => Promise<void>;
   clearCache: () => Promise<void>;
 };
 
@@ -73,6 +78,8 @@ export function createAppStore(
   storage: AppStorage = {
     loadSelectedDomains,
     saveSelectedDomains,
+    loadThemeMode,
+    saveThemeMode,
     clearCache: clearPersistedCache
   }
 ) {
@@ -118,6 +125,13 @@ export function createAppStore(
           : [...state.favoriteIds, itemId]
       }));
     },
+    toggleThemeMode: async () => {
+      const nextMode = get().themeMode === 'dark' ? 'light' : 'dark';
+      await storage.saveThemeMode(nextMode);
+      set((state) => ({
+        themeMode: state.themeMode === 'dark' ? 'light' : 'dark'
+      }));
+    },
     completeOnboarding: async () => {
       const { selectedDomains } = get();
       if (selectedDomains.length === 0) {
@@ -141,9 +155,13 @@ export function createAppStore(
       });
     },
     hydrate: async () => {
-      const selectedDomains = (await storage.loadSelectedDomains()) as DomainId[];
+      const [selectedDomains, themeMode] = await Promise.all([
+        storage.loadSelectedDomains(),
+        storage.loadThemeMode()
+      ]);
       set({
-        selectedDomains,
+        selectedDomains: selectedDomains as DomainId[],
+        themeMode,
         hasCompletedOnboarding: selectedDomains.length > 0
       });
     }

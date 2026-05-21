@@ -1,9 +1,5 @@
-import { Text, View } from 'react-native';
+import { ExploreScreen } from '../../src/features/explore/ExploreScreen';
 
 export default function ExploreRoute() {
-  return (
-    <View>
-      <Text>抽卡</Text>
-    </View>
-  );
+  return <ExploreScreen />;
 }

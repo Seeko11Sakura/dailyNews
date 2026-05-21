@@ -11,7 +11,10 @@ describe('app store', () => {
   it('persists selected domains when completing onboarding', async () => {
     const storage = {
       loadSelectedDomains: vi.fn().mockResolvedValue([]),
-      saveSelectedDomains: vi.fn().mockResolvedValue(undefined)
+      loadThemeMode: vi.fn().mockResolvedValue('light'),
+      saveSelectedDomains: vi.fn().mockResolvedValue(undefined),
+      saveThemeMode: vi.fn().mockResolvedValue(undefined),
+      clearCache: vi.fn().mockResolvedValue(undefined)
     };
     const store = createAppStore(storage);
 
@@ -25,13 +28,17 @@ describe('app store', () => {
   it('hydrates selected domains from storage', async () => {
     const storage = {
       loadSelectedDomains: vi.fn().mockResolvedValue(['technology', 'ai']),
-      saveSelectedDomains: vi.fn().mockResolvedValue(undefined)
+      loadThemeMode: vi.fn().mockResolvedValue('dark'),
+      saveSelectedDomains: vi.fn().mockResolvedValue(undefined),
+      saveThemeMode: vi.fn().mockResolvedValue(undefined),
+      clearCache: vi.fn().mockResolvedValue(undefined)
     };
     const store = createAppStore(storage);
 
     await store.getState().hydrate();
 
     expect(store.getState().selectedDomains).toEqual(['technology', 'ai']);
+    expect(store.getState().themeMode).toBe('dark');
     expect(store.getState().hasCompletedOnboarding).toBe(true);
   });
 
@@ -72,10 +79,31 @@ describe('app store', () => {
     expect(store.getState().favoriteIds).toEqual([]);
   });
 
+  it('persists toggled theme mode', async () => {
+    const storage = {
+      loadSelectedDomains: vi.fn().mockResolvedValue([]),
+      loadThemeMode: vi.fn().mockResolvedValue('light'),
+      saveSelectedDomains: vi.fn().mockResolvedValue(undefined),
+      saveThemeMode: vi.fn().mockResolvedValue(undefined),
+      clearCache: vi.fn().mockResolvedValue(undefined)
+    };
+    const store = createAppStore(storage);
+
+    await store.getState().toggleThemeMode();
+    expect(store.getState().themeMode).toBe('dark');
+    expect(storage.saveThemeMode).toHaveBeenCalledWith('dark');
+
+    await store.getState().toggleThemeMode();
+    expect(store.getState().themeMode).toBe('light');
+    expect(storage.saveThemeMode).toHaveBeenCalledWith('light');
+  });
+
   it('clears persisted data and resets in-memory state', async () => {
     const storage = {
       loadSelectedDomains: vi.fn().mockResolvedValue([]),
+      loadThemeMode: vi.fn().mockResolvedValue('light'),
       saveSelectedDomains: vi.fn().mockResolvedValue(undefined),
+      saveThemeMode: vi.fn().mockResolvedValue(undefined),
       clearCache: vi.fn().mockResolvedValue(undefined)
     };
     const store = createAppStore(storage);

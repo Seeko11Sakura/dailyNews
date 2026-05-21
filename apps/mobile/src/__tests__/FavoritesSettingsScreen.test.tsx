@@ -18,7 +18,9 @@ it('renders favorites skeleton with search and count', () => {
 it('renders settings skeleton and clears cache from button press', async () => {
   const storage = {
     loadSelectedDomains: vi.fn().mockResolvedValue([]),
+    loadThemeMode: vi.fn().mockResolvedValue('light'),
     saveSelectedDomains: vi.fn().mockResolvedValue(undefined),
+    saveThemeMode: vi.fn().mockResolvedValue(undefined),
     clearCache: vi.fn().mockResolvedValue(undefined)
   };
   const store = createAppStore(storage);

@@ -6,7 +6,10 @@ import { createAppStore } from '../store/app-store';
 it('enables continue after selecting at least one domain', () => {
   const storage = {
     loadSelectedDomains: vi.fn().mockResolvedValue([]),
-    saveSelectedDomains: vi.fn().mockResolvedValue(undefined)
+    loadThemeMode: vi.fn().mockResolvedValue('light'),
+    saveSelectedDomains: vi.fn().mockResolvedValue(undefined),
+    saveThemeMode: vi.fn().mockResolvedValue(undefined),
+    clearCache: vi.fn().mockResolvedValue(undefined)
   };
   const store = createAppStore(storage);
 
