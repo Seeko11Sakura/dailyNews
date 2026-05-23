@@ -7,7 +7,9 @@ from app.domain_catalog import DomainId
 class ExploreRequest(BaseModel):
     selected_domains: list[DomainId] = Field(min_length=1, max_length=5)
     seen_domain_ids: list[DomainId] = Field(default_factory=list)
+    dismissed_domains: list[DomainId] = Field(default_factory=list)
     date: str
+    user_id: str | None = None
 
     @field_validator("selected_domains", "seen_domain_ids")
     @classmethod

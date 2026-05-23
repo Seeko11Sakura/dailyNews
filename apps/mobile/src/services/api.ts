@@ -57,3 +57,38 @@ export async function fetchItemDetail(itemId: string): Promise<ArticleDetail> {
 
   return response.json();
 }
+
+export type ExploreCard = {
+  domain_id: string;
+  domain_name: string;
+  reason: string;
+  preview_titles: string[];
+};
+
+type ExploreResponse = {
+  cards: ExploreCard[];
+};
+
+export async function fetchExploreCards(
+  selectedDomains: string[],
+  dismissedDomains: string[] = [],
+  seenDomainIds: string[] = []
+): Promise<ExploreResponse> {
+  const today = new Date().toISOString().split('T')[0];
+  const response = await fetch(`${API_BASE_URL}/explore/draw`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      selected_domains: selectedDomains,
+      dismissed_domains: dismissedDomains,
+      seen_domain_ids: seenDomainIds,
+      date: today
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error('获取探索卡片失败');
+  }
+
+  return response.json();
+}

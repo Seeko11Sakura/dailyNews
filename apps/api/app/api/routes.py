@@ -6,10 +6,10 @@ from app.schemas.domain import Domain
 from app.schemas.explore import ExploreRequest, ExploreResponse
 from app.services.mock_repository import (
     get_article_detail,
-    get_explore_cards,
     get_today_digest,
     list_domains,
 )
+from app.services.explore_service import get_explore_cards as get_explore_cards_real
 
 router = APIRouter()
 
@@ -31,7 +31,7 @@ def get_item(item_id: str) -> ArticleDetail:
 
 @router.post("/explore/draw", response_model=ExploreResponse)
 def draw_explore_cards(payload: ExploreRequest) -> ExploreResponse:
-    return get_explore_cards(payload)
+    return get_explore_cards_real(payload)
 
 
 @router.get("/healthz")

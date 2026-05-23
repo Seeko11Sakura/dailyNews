@@ -4,8 +4,12 @@ import type { StoreApi } from 'zustand/vanilla';
 import type { DomainId } from '@dailynews/shared';
 import {
   clearCache as clearPersistedCache,
+  loadDismissedDomains,
+  loadFavoriteIds,
   loadSelectedDomains,
   loadThemeMode,
+  saveDismissedDomains,
+  saveFavoriteIds,
   saveSelectedDomains,
   saveThemeMode
 } from '../services/storage';
@@ -28,11 +32,13 @@ export type DigestGroup = {
 export type AppState = {
   hasCompletedOnboarding: boolean;
   selectedDomains: DomainId[];
+  dismissedDomains: DomainId[];
   digestGroups: DigestGroup[];
   readCount: number;
   favoriteIds: string[];
   themeMode: 'light' | 'dark';
   toggleDomainSelection: (id: DomainId) => void;
+  addDismissedDomain: (id: DomainId) => void;
   setDigest: (groups: DigestGroup[]) => void;
   markItemRead: (itemId: string) => void;
   toggleFavorite: (itemId: string) => void;
@@ -47,6 +53,10 @@ export type AppStorage = {
   saveSelectedDomains: (ids: string[]) => Promise<void>;
   loadThemeMode: () => Promise<'light' | 'dark'>;
   saveThemeMode: (mode: 'light' | 'dark') => Promise<void>;
+  loadFavoriteIds: () => Promise<string[]>;
+  saveFavoriteIds: (ids: string[]) => Promise<void>;
+  loadDismissedDomains: () => Promise<string[]>;
+  saveDismissedDomains: (ids: string[]) => Promise<void>;
   clearCache: () => Promise<void>;
 };
 
@@ -80,12 +90,17 @@ export function createAppStore(
     saveSelectedDomains,
     loadThemeMode,
     saveThemeMode,
+    loadFavoriteIds,
+    saveFavoriteIds,
+    loadDismissedDomains,
+    saveDismissedDomains,
     clearCache: clearPersistedCache
   }
 ) {
   return createStore<AppState>()((set, get) => ({
     hasCompletedOnboarding: false,
     selectedDomains: [],
+    dismissedDomains: [],
     digestGroups: [],
     readCount: 0,
     favoriteIds: [],
@@ -94,6 +109,14 @@ export function createAppStore(
       set((state) => ({
         selectedDomains: toggleSelection(state.selectedDomains, id)
       }));
+    },
+    addDismissedDomain: (id) => {
+      set((state) => {
+        if (state.dismissedDomains.includes(id)) return state;
+        const next = [...state.dismissedDomains, id];
+        storage.saveDismissedDomains(next);
+        return { dismissedDomains: next };
+      });
     },
     setDigest: (groups) => {
       set({
@@ -119,11 +142,13 @@ export function createAppStore(
       });
     },
     toggleFavorite: (itemId) => {
-      set((state) => ({
-        favoriteIds: state.favoriteIds.includes(itemId)
+      set((state) => {
+        const next = state.favoriteIds.includes(itemId)
           ? state.favoriteIds.filter((id) => id !== itemId)
-          : [...state.favoriteIds, itemId]
-      }));
+          : [...state.favoriteIds, itemId];
+        storage.saveFavoriteIds(next);
+        return { favoriteIds: next };
+      });
     },
     toggleThemeMode: async () => {
       const nextMode = get().themeMode === 'dark' ? 'light' : 'dark';
@@ -155,13 +180,17 @@ export function createAppStore(
       });
     },
     hydrate: async () => {
-      const [selectedDomains, themeMode] = await Promise.all([
+      const [selectedDomains, themeMode, favoriteIds, dismissedDomains] = await Promise.all([
         storage.loadSelectedDomains(),
-        storage.loadThemeMode()
+        storage.loadThemeMode(),
+        storage.loadFavoriteIds(),
+        storage.loadDismissedDomains()
       ]);
       set({
         selectedDomains: selectedDomains as DomainId[],
         themeMode,
+        favoriteIds,
+        dismissedDomains: dismissedDomains as DomainId[],
         hasCompletedOnboarding: selectedDomains.length > 0
       });
     }
