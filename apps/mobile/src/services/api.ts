@@ -31,13 +31,14 @@ export const API_BASE_URL = 'http://127.0.0.1:8000';
 export async function fetchTodayDigest(
   selectedDomains: string[]
 ): Promise<ApiDigestResponse> {
+  const today = new Date().toISOString().split('T')[0];
   const response = await fetch(`${API_BASE_URL}/digest/today`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       selected_domains: selectedDomains,
       sort_preference: 'freshness',
-      date: '2026-05-19'
+      date: today
     })
   });
 
