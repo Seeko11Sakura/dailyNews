@@ -17,7 +17,7 @@ it('enables continue after selecting at least one domain', () => {
 
   expect(screen.queryByText(/进入简报/)).toBeNull();
 
-  fireEvent.click(screen.getByText('科技与互联网'));
+  fireEvent.click(screen.getByLabelText('选择科技与互联网'));
 
   expect(screen.getByText('进入简报 (1/5)')).toBeTruthy();
 });
