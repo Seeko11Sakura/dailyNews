@@ -147,15 +147,13 @@ export function ExploreScreen({ store }: ExploreScreenProps) {
                     {isSelected ? '已在主页' : isFull ? '已达上限' : '添加到主页'}
                   </Text>
                 </AnimatedPressable>
-                {!isSelected && (
-                  <Pressable
-                    onPress={() => handleDismiss(card.domain_id)}
-                    style={styles.dismissButton}
-                    accessibilityLabel={`不感兴趣${card.domain_name}`}
-                  >
-                    <Text style={styles.dismissText}>不感兴趣</Text>
-                  </Pressable>
-                )}
+                <Pressable
+                  onPress={() => handleDismiss(card.domain_id)}
+                  style={styles.dismissButton}
+                  accessibilityLabel={`不感兴趣${card.domain_name}`}
+                >
+                  <Text style={styles.dismissText}>不感兴趣</Text>
+                </Pressable>
               </View>
             </View>
           );

@@ -26,7 +26,7 @@ export type ArticleDetail = {
   fetch_status: string;
 };
 
-export const API_BASE_URL = 'http://127.0.0.1:8000';
+export const API_BASE_URL = 'http://192.168.31.154:8000';
 
 export async function fetchTodayDigest(
   selectedDomains: string[]

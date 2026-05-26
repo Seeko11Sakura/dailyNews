@@ -51,16 +51,16 @@ export function ArticleCard({
             {summary}
           </Text>
         </View>
+        <AnimatedPressable
+          onPress={onPress}
+          accessibilityLabel={`阅读全文：${title}`}
+          accessibilityRole="button"
+          style={styles.openButton}
+          pressedStyle={styles.pressed}
+        >
+          <Text style={styles.openButtonText}>阅读全文</Text>
+        </AnimatedPressable>
       </View>
-      <AnimatedPressable
-        onPress={onPress}
-        accessibilityLabel={`阅读全文：${title}`}
-        accessibilityRole="button"
-        style={styles.openButton}
-        pressedStyle={styles.pressed}
-      >
-        <Text style={styles.openButtonText}>阅读全文</Text>
-      </AnimatedPressable>
     </View>
   );
 }
@@ -85,7 +85,8 @@ function createStyles(theme: ReturnType<typeof getTheme>) {
     },
     fillWrapper: {
       width: CARD_WIDTH,
-      marginRight: theme.space.lg
+      marginRight: theme.space.lg,
+      marginBottom: 0
     },
     readWrapper: {
       opacity: 0.58
@@ -155,6 +156,7 @@ function createStyles(theme: ReturnType<typeof getTheme>) {
       justifyContent: 'center',
       borderRadius: theme.radius.lg,
       backgroundColor: theme.color.primary,
+      marginTop: theme.space.md,
       ...theme.shadow.primary
     },
     pressed: {

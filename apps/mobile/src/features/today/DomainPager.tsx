@@ -59,6 +59,14 @@ export function DomainPager({
     itemVisiblePercentThreshold: 50
   }).current;
 
+  const onHorizontalViewableItemsChanged = useCallback(() => {
+    // Track horizontal position if needed
+  }, []);
+
+  const horizontalViewabilityConfig = useRef({
+    itemVisiblePercentThreshold: 50
+  }).current;
+
   const renderDomain = useCallback(
     ({ item, index }: { item: typeof domains[0]; index: number }) => (
       <View style={styles.domainContainer}>
@@ -74,6 +82,7 @@ export function DomainPager({
           pagingEnabled
           showsHorizontalScrollIndicator={false}
           keyExtractor={(article) => article.id}
+          style={styles.articleList}
           renderItem={({ item: article }) => (
             <ArticleCard
               id={article.id}
@@ -88,14 +97,12 @@ export function DomainPager({
               fillHeight
             />
           )}
-          onViewableItemsChanged={({ viewableItems }) => {
-            // Track horizontal position if needed
-          }}
-          viewabilityConfig={{ itemVisiblePercentThreshold: 50 }}
+          onViewableItemsChanged={onHorizontalViewableItemsChanged}
+          viewabilityConfig={horizontalViewabilityConfig}
         />
       </View>
     ),
-    [domains.length, themeMode, onItemPress, onItemRead, styles]
+    [domains.length, themeMode, onItemPress, onItemRead, styles, onHorizontalViewableItemsChanged, horizontalViewabilityConfig]
   );
 
   return (
@@ -132,6 +139,9 @@ function createStyles(theme: ReturnType<typeof getTheme>) {
       justifyContent: 'space-between',
       alignItems: 'center',
       paddingVertical: theme.space.md
+    },
+    articleList: {
+      flex: 1
     },
     domainName: {
       color: theme.color.text,
