@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from app.repositories.base import get_supabase
+from app.services.ai_overview import generate_ai_overview
 from app.services.rss_fetcher import fetch_feed
 from app.services.source_config import (
     SOURCES_BY_NAME,
@@ -25,6 +26,12 @@ logger = logging.getLogger(__name__)
 
 # In-memory fetch status tracker (source_name -> last fetch metadata).
 _fetch_status: dict[str, dict[str, Any]] = {}
+
+
+def _is_missing_ai_overview_column(exc: Exception) -> bool:
+    """判断 Supabase 是否还没有执行 ai_overview 字段迁移。"""
+    message = str(exc)
+    return "ai_overview" in message and "42703" in message
 
 
 # ---------------------------------------------------------------------------
@@ -124,6 +131,8 @@ async def insert_articles(articles: list[dict[str, Any]]) -> int:
             "domain_id": article.get("domain_id", ""),
             "title": article["title"],
             "summary": article.get("summary", ""),
+            "ai_overview": article.get("ai_overview")
+            or await generate_ai_overview(article),
             "content": article.get("content") or article.get("summary", ""),
             "source_url": article["source_url"],
             "source_name": article.get("source_name", ""),
@@ -142,7 +151,13 @@ async def insert_articles(articles: list[dict[str, Any]]) -> int:
         try:
             supabase.table("articles").insert(row).execute()
             inserted += 1
-        except Exception:
+        except Exception as exc:
+            if _is_missing_ai_overview_column(exc):
+                row_without_ai = dict(row)
+                row_without_ai.pop("ai_overview", None)
+                supabase.table("articles").insert(row_without_ai).execute()
+                inserted += 1
+                continue
             logger.exception(
                 "Failed to insert article: %s", row.get("source_url", "unknown")
             )

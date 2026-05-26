@@ -1,6 +1,8 @@
+from app.repositories.base import get_supabase
 from app.schemas.article import ArticleDetail
 from app.schemas.digest import DigestGroup, DigestItem, DigestRequest, DigestResponse
 from app.schemas.domain import Domain
+from app.services.ai_overview import compact_text
 from app.schemas.explore import ExploreCard, ExploreRequest, ExploreResponse
 from app.domain_catalog import (
     DOMAIN_DEFINITIONS,
@@ -13,41 +15,95 @@ from app.domain_catalog import (
 DOMAINS = [Domain(**definition) for definition in DOMAIN_DEFINITIONS]
 
 
+def _is_missing_ai_overview_column(exc: Exception) -> bool:
+    """判断 Supabase 是否还没有执行 ai_overview 字段迁移。"""
+    message = str(exc)
+    return "ai_overview" in message and "42703" in message
+
+
 def list_domains() -> list[Domain]:
     return DOMAINS
 
 
-def build_digest_items(domain_id: DomainId) -> list[DigestItem]:
-    domain_name = DOMAIN_NAMES[domain_id]
-    return [
-        DigestItem(
-            id=f"{domain_id}-{index}",
-            domain_id=domain_id,
-            title=f"{domain_name} 今日第 {index} 条重要资讯核心速报",
-            summary=f"{domain_name} 今日要点 {index}：用于联调的结论卡摘要，控制在 100 字以内。",
-            source="Mock Source",
-            published_at="2026-05-19T08:00:00+08:00",
-        )
-        for index in range(1, 11)
-    ]
-
-
 def get_today_digest(payload: DigestRequest) -> DigestResponse:
-    groups = [
-        DigestGroup(domain_id=domain_id, items=build_digest_items(domain_id))
-        for domain_id in payload.selected_domains
-    ]
+    supabase = get_supabase()
+    groups = []
+
+    for domain_id in payload.selected_domains:
+        query = (
+            supabase.table("articles")
+            .select("id, domain_id, title, summary, ai_overview, source_name, published_at")
+            .eq("domain_id", domain_id)
+            .order("published_at", desc=True)
+            .limit(10)
+        )
+        try:
+            result = query.execute()
+        except Exception as exc:
+            if not _is_missing_ai_overview_column(exc):
+                raise
+            result = (
+                supabase.table("articles")
+                .select("id, domain_id, title, summary, source_name, published_at")
+                .eq("domain_id", domain_id)
+                .order("published_at", desc=True)
+                .limit(10)
+                .execute()
+            )
+
+        items = [
+            DigestItem(
+                id=row["id"],
+                domain_id=row["domain_id"],
+                title=row["title"],
+                summary=compact_text(row.get("ai_overview") or row["summary"] or "", 100),
+                source=row["source_name"] or "",
+                published_at=row["published_at"] or "",
+            )
+            for row in result.data
+        ]
+        groups.append(DigestGroup(domain_id=domain_id, items=items))
+
     return DigestResponse(groups=groups)
 
 
 def get_article_detail(item_id: str) -> ArticleDetail:
+    supabase = get_supabase()
+    query = (
+        supabase.table("articles")
+        .select("id, title, summary, ai_overview, content, source_url, fetch_status")
+        .eq("id", item_id)
+    )
+    try:
+        result = query.execute()
+    except Exception as exc:
+        if not _is_missing_ai_overview_column(exc):
+            raise
+        result = (
+            supabase.table("articles")
+            .select("id, title, summary, content, source_url, fetch_status")
+            .eq("id", item_id)
+            .execute()
+        )
+
+    if not result.data:
+        return ArticleDetail(
+            id=item_id,
+            title="未找到",
+            summary="",
+            content="",
+            source_url="",
+            fetch_status="not_found",
+        )
+
+    row = result.data[0]
     return ArticleDetail(
-        id=item_id,
-        title="Mock 详情",
-        summary="结论卡回顾",
-        content="正文内容联调用。",
-        source_url="https://example.com/article",
-        fetch_status="success",
+        id=row["id"],
+        title=row["title"],
+        summary=row.get("ai_overview") or row["summary"] or "",
+        content=row["content"] or "",
+        source_url=row["source_url"] or "",
+        fetch_status=row["fetch_status"] or "success",
     )
 
 

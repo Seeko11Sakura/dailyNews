@@ -1,6 +1,21 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createAppStore } from '../store/app-store';
 
+function createMockStorage(overrides = {}) {
+  return {
+    loadSelectedDomains: vi.fn().mockResolvedValue([]),
+    loadThemeMode: vi.fn().mockResolvedValue('light'),
+    loadFavoriteIds: vi.fn().mockResolvedValue([]),
+    loadDismissedDomains: vi.fn().mockResolvedValue([]),
+    saveSelectedDomains: vi.fn().mockResolvedValue(undefined),
+    saveThemeMode: vi.fn().mockResolvedValue(undefined),
+    saveFavoriteIds: vi.fn().mockResolvedValue(undefined),
+    saveDismissedDomains: vi.fn().mockResolvedValue(undefined),
+    clearCache: vi.fn().mockResolvedValue(undefined),
+    ...overrides
+  };
+}
+
 describe('app store', () => {
   it('starts with onboarding visible', () => {
     const store = createAppStore();
@@ -9,13 +24,7 @@ describe('app store', () => {
   });
 
   it('persists selected domains when completing onboarding', async () => {
-    const storage = {
-      loadSelectedDomains: vi.fn().mockResolvedValue([]),
-      loadThemeMode: vi.fn().mockResolvedValue('light'),
-      saveSelectedDomains: vi.fn().mockResolvedValue(undefined),
-      saveThemeMode: vi.fn().mockResolvedValue(undefined),
-      clearCache: vi.fn().mockResolvedValue(undefined)
-    };
+    const storage = createMockStorage();
     const store = createAppStore(storage);
 
     store.getState().toggleDomainSelection('technology');
@@ -26,13 +35,10 @@ describe('app store', () => {
   });
 
   it('hydrates selected domains from storage', async () => {
-    const storage = {
+    const storage = createMockStorage({
       loadSelectedDomains: vi.fn().mockResolvedValue(['technology', 'ai']),
-      loadThemeMode: vi.fn().mockResolvedValue('dark'),
-      saveSelectedDomains: vi.fn().mockResolvedValue(undefined),
-      saveThemeMode: vi.fn().mockResolvedValue(undefined),
-      clearCache: vi.fn().mockResolvedValue(undefined)
-    };
+      loadThemeMode: vi.fn().mockResolvedValue('dark')
+    });
     const store = createAppStore(storage);
 
     await store.getState().hydrate();
@@ -80,13 +86,7 @@ describe('app store', () => {
   });
 
   it('persists toggled theme mode', async () => {
-    const storage = {
-      loadSelectedDomains: vi.fn().mockResolvedValue([]),
-      loadThemeMode: vi.fn().mockResolvedValue('light'),
-      saveSelectedDomains: vi.fn().mockResolvedValue(undefined),
-      saveThemeMode: vi.fn().mockResolvedValue(undefined),
-      clearCache: vi.fn().mockResolvedValue(undefined)
-    };
+    const storage = createMockStorage();
     const store = createAppStore(storage);
 
     await store.getState().toggleThemeMode();
@@ -99,13 +99,7 @@ describe('app store', () => {
   });
 
   it('clears persisted data and resets in-memory state', async () => {
-    const storage = {
-      loadSelectedDomains: vi.fn().mockResolvedValue([]),
-      loadThemeMode: vi.fn().mockResolvedValue('light'),
-      saveSelectedDomains: vi.fn().mockResolvedValue(undefined),
-      saveThemeMode: vi.fn().mockResolvedValue(undefined),
-      clearCache: vi.fn().mockResolvedValue(undefined)
-    };
+    const storage = createMockStorage();
     const store = createAppStore(storage);
 
     store.getState().toggleDomainSelection('technology');

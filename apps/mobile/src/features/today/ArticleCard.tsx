@@ -41,13 +41,13 @@ export function ArticleCard({
         <View style={styles.topBar}>
           <Text style={styles.readState}>{isRead ? '已读' : '未读'}</Text>
         </View>
-        <Text style={styles.title} numberOfLines={fillHeight ? undefined : 3}>
+        <Text style={styles.title} numberOfLines={3}>
           {title}
         </Text>
         <Text style={styles.meta}>{`${source} · ${formatTime(publishedAt)}`}</Text>
         <View style={styles.conclusionBox}>
           <Text style={styles.conclusionLabel}>结论速读</Text>
-          <Text style={styles.summary} numberOfLines={fillHeight ? undefined : 4}>
+          <Text style={styles.summary} numberOfLines={4}>
             {summary}
           </Text>
         </View>

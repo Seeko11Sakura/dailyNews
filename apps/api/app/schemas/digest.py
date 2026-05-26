@@ -28,7 +28,7 @@ class DigestItem(BaseModel):
     id: str
     domain_id: DomainId
     title: str
-    summary: str = Field(max_length=100)
+    summary: str = Field(max_length=500)
     source: str
     published_at: str
     is_read: bool = False

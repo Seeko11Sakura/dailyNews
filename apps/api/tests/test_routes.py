@@ -26,7 +26,7 @@ def test_digest_route():
     assert response.status_code == 200
     assert len(response.json()["groups"]) == 3
     for group in response.json()["groups"]:
-        assert len(group["items"]) == 10
+        assert len(group["items"]) <= 10
         assert all(len(item["summary"]) <= 100 for item in group["items"])
 
 
@@ -90,7 +90,17 @@ def test_digest_rejects_unknown_sort_preference():
 
 
 def test_article_route():
-    response = client.get("/items/technology-1")
+    digest_response = client.post(
+        "/digest/today",
+        json={
+            "selected_domains": ["technology"],
+            "sort_preference": "freshness",
+            "date": "2026-05-19",
+        },
+    )
+    item_id = digest_response.json()["groups"][0]["items"][0]["id"]
+
+    response = client.get(f"/items/{item_id}")
 
     assert response.status_code == 200
     assert response.json()["source_url"].startswith("https://")
