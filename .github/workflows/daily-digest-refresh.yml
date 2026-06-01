@@ -1,0 +1,43 @@
+# 这个工作流每天触发线上后端，让系统自动抓取并生成当天简报。
+name: Daily Digest Refresh
+
+on:
+  schedule:
+    # UTC 00:00 = 北京时间 08:00
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+jobs:
+  refresh:
+    name: Trigger daily digest
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Wake backend
+        run: |
+          curl -fsS \
+            --retry 5 \
+            --retry-delay 10 \
+            --retry-all-errors \
+            --connect-timeout 20 \
+            --max-time 120 \
+            "https://dailynews-7rwk.onrender.com/healthz"
+
+      - name: Start daily digest generation
+        run: |
+          curl -fsS \
+            -X POST \
+            --retry 3 \
+            --retry-delay 10 \
+            --retry-all-errors \
+            --connect-timeout 20 \
+            --max-time 120 \
+            "https://dailynews-7rwk.onrender.com/digest/generate"
+
+      - name: Check job status
+        run: |
+          curl -fsS \
+            --connect-timeout 20 \
+            --max-time 60 \
+            "https://dailynews-7rwk.onrender.com/digest/job/status"
