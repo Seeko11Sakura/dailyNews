@@ -1,3 +1,4 @@
+// 今日页领域分页，负责按兴趣领域组织横向文章卡片。
 import { useCallback, useRef, useState } from 'react';
 import {
   Animated,
@@ -11,8 +12,8 @@ import {
 import { getTheme } from '../../theme/tokens';
 import { ArticleCard } from './ArticleCard';
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const DOMAIN_HEIGHT = SCREEN_HEIGHT - 200;
+export const DOMAIN_HEIGHT = 500;
+const ARTICLE_LIST_HEIGHT = 500;
 
 type DomainPagerProps = {
   domains: Array<{
@@ -24,6 +25,7 @@ type DomainPagerProps = {
       summary: string;
       source: string;
       publishedAt: string;
+      coverImageUrl?: string | null;
       isRead: boolean;
     }>;
   }>;
@@ -76,30 +78,41 @@ export function DomainPager({
             {index + 1} / {domains.length}
           </Text>
         </View>
-        <FlatList
-          data={item.items}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          keyExtractor={(article) => article.id}
-          style={styles.articleList}
-          renderItem={({ item: article }) => (
-            <ArticleCard
-              id={article.id}
-              title={article.title}
-              summary={article.summary}
-              source={article.source}
-              publishedAt={article.publishedAt}
-              isRead={article.isRead}
-              themeMode={themeMode}
-              onPress={() => onItemPress(article.id)}
-              onMarkRead={() => onItemRead(article.id)}
-              fillHeight
-            />
-          )}
-          onViewableItemsChanged={onHorizontalViewableItemsChanged}
-          viewabilityConfig={horizontalViewabilityConfig}
-        />
+        {item.items.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyTitle}>该领域今日正在生成</Text>
+            <Text style={styles.emptyText}>
+              系统正在抓取并解析今天的内容，稍后刷新查看。
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            data={item.items}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            keyExtractor={(article) => article.id}
+            style={styles.articleList}
+            renderItem={({ item: article }) => (
+              <ArticleCard
+                id={article.id}
+                title={article.title}
+                summary={article.summary}
+                source={article.source}
+                publishedAt={article.publishedAt}
+                coverImageUrl={article.coverImageUrl}
+                domainName={item.domainName}
+                isRead={article.isRead}
+                themeMode={themeMode}
+                onPress={() => onItemPress(article.id)}
+                onMarkRead={() => onItemRead(article.id)}
+                fillHeight
+              />
+            )}
+            onViewableItemsChanged={onHorizontalViewableItemsChanged}
+            viewabilityConfig={horizontalViewabilityConfig}
+          />
+        )}
       </View>
     ),
     [domains.length, themeMode, onItemPress, onItemRead, styles, onHorizontalViewableItemsChanged, horizontalViewabilityConfig]
@@ -111,14 +124,12 @@ export function DomainPager({
         ref={flatListRef}
         data={domains}
         vertical
-        pagingEnabled
         showsVerticalScrollIndicator={false}
         keyExtractor={(item) => item.domainId}
         renderItem={renderDomain}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
-        snapToInterval={DOMAIN_HEIGHT}
-        decelerationRate="fast"
+        contentContainerStyle={styles.listContent}
         bounces={false}
       />
     </View>
@@ -130,9 +141,12 @@ function createStyles(theme: ReturnType<typeof getTheme>) {
     container: {
       flex: 1
     },
+    listContent: {
+      paddingBottom: 150
+    },
     domainContainer: {
-      height: DOMAIN_HEIGHT,
-      paddingHorizontal: theme.space.lg
+      paddingHorizontal: theme.space.lg,
+      marginBottom: theme.space.xxl
     },
     domainHeader: {
       flexDirection: 'row',
@@ -141,7 +155,30 @@ function createStyles(theme: ReturnType<typeof getTheme>) {
       paddingVertical: theme.space.md
     },
     articleList: {
-      flex: 1
+      height: ARTICLE_LIST_HEIGHT
+    },
+    emptyCard: {
+      borderRadius: 28,
+      backgroundColor: theme.color.surface,
+      paddingHorizontal: theme.space.lg,
+      paddingVertical: theme.space.lg,
+      shadowColor: theme.color.shadow,
+      shadowOpacity: 0.12,
+      shadowRadius: 24,
+      shadowOffset: { width: 0, height: 14 },
+      elevation: 6
+    },
+    emptyTitle: {
+      color: theme.color.text,
+      fontSize: 18,
+      fontWeight: '800',
+      marginBottom: theme.space.sm
+    },
+    emptyText: {
+      color: theme.color.muted,
+      fontSize: 14,
+      fontWeight: '600',
+      lineHeight: 22
     },
     domainName: {
       color: theme.color.text,

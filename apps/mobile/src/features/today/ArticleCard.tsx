@@ -1,5 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Dimensions } from 'react-native';
+// 今日页文章卡片，负责展示封面、标题、AI 概览和阅读入口。
+import { Dimensions, Image, StyleSheet, Text, View } from 'react-native';
 import { AnimatedPressable } from '../../components/AnimatedPressable';
 import { getTheme } from '../../theme/tokens';
 
@@ -13,6 +13,8 @@ type ArticleCardProps = {
   summary?: string;
   source?: string;
   publishedAt?: string;
+  coverImageUrl?: string | null;
+  domainName?: string;
   isRead?: boolean;
   themeMode?: 'light' | 'dark';
   onPress?: () => void;
@@ -26,6 +28,8 @@ export function ArticleCard({
   summary = '',
   source = '',
   publishedAt = '',
+  coverImageUrl = null,
+  domainName = '今日',
   isRead = false,
   themeMode = 'light',
   onPress,
@@ -41,13 +45,25 @@ export function ArticleCard({
         <View style={styles.topBar}>
           <Text style={styles.readState}>{isRead ? '已读' : '未读'}</Text>
         </View>
-        <Text style={styles.title} numberOfLines={3}>
+        {coverImageUrl ? (
+          <Image
+            accessibilityLabel="文章封面图"
+            source={{ uri: coverImageUrl }}
+            style={styles.coverImage}
+            resizeMode="cover"
+          />
+        ) : (
+          <View accessibilityLabel="默认文章封面" style={styles.defaultCover}>
+            <Text style={styles.defaultCoverTitle}>{domainName}</Text>
+          </View>
+        )}
+        <Text style={styles.title} numberOfLines={2}>
           {title}
         </Text>
         <Text style={styles.meta}>{`${source} · ${formatTime(publishedAt)}`}</Text>
         <View style={styles.conclusionBox}>
           <Text style={styles.conclusionLabel}>结论速读</Text>
-          <Text style={styles.summary} numberOfLines={4}>
+          <Text style={styles.summary} numberOfLines={3}>
             {summary}
           </Text>
         </View>
@@ -85,6 +101,7 @@ function createStyles(theme: ReturnType<typeof getTheme>) {
     },
     fillWrapper: {
       width: CARD_WIDTH,
+      height: '100%',
       marginRight: theme.space.lg,
       marginBottom: 0
     },
@@ -93,7 +110,7 @@ function createStyles(theme: ReturnType<typeof getTheme>) {
     },
     card: {
       minHeight: 320,
-      padding: theme.space.xl,
+      padding: theme.space.md,
       borderRadius: theme.radius.xl,
       backgroundColor: theme.color.surface,
       borderWidth: 1,
@@ -108,7 +125,7 @@ function createStyles(theme: ReturnType<typeof getTheme>) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: theme.space.sm,
-      marginBottom: theme.space.lg,
+      marginBottom: theme.space.sm,
       flexWrap: 'wrap'
     },
     readState: {
@@ -119,20 +136,43 @@ function createStyles(theme: ReturnType<typeof getTheme>) {
     },
     title: {
       color: theme.color.text,
-      fontSize: 22,
+      fontSize: 20,
       fontWeight: '800',
-      lineHeight: 32,
-      marginBottom: theme.space.md
+      lineHeight: 28,
+      marginBottom: theme.space.sm
+    },
+    coverImage: {
+      width: '100%',
+      height: 88,
+      borderRadius: theme.radius.lg,
+      marginBottom: theme.space.sm,
+      backgroundColor: theme.color.surfaceInner
+    },
+    defaultCover: {
+      width: '100%',
+      height: 88,
+      borderRadius: theme.radius.lg,
+      marginBottom: theme.space.sm,
+      paddingHorizontal: theme.space.md,
+      justifyContent: 'center',
+      backgroundColor: theme.color.surfaceInner,
+      borderWidth: 1,
+      borderColor: theme.color.border
+    },
+    defaultCoverTitle: {
+      color: theme.color.primary,
+      fontSize: 18,
+      fontWeight: '800'
     },
     meta: {
       color: theme.color.muted,
       fontSize: 13,
       fontWeight: '600',
-      marginBottom: theme.space.xl
+      marginBottom: theme.space.sm
     },
     conclusionBox: {
-      flex: 1,
-      padding: theme.space.lg,
+      flexShrink: 1,
+      padding: theme.space.sm,
       borderRadius: theme.radius.lg,
       backgroundColor: theme.color.surfaceInner,
       borderWidth: 1,
@@ -142,21 +182,21 @@ function createStyles(theme: ReturnType<typeof getTheme>) {
       color: theme.color.primary,
       fontSize: 13,
       fontWeight: '800',
-      marginBottom: theme.space.sm
+      marginBottom: 4
     },
     summary: {
       color: theme.color.text,
-      fontSize: 16,
-      lineHeight: 26,
+      fontSize: 15,
+      lineHeight: 23,
       fontWeight: '500'
     },
     openButton: {
-      minHeight: 56,
+      minHeight: 52,
       alignItems: 'center',
       justifyContent: 'center',
       borderRadius: theme.radius.lg,
       backgroundColor: theme.color.primary,
-      marginTop: theme.space.md,
+      marginTop: theme.space.sm,
       ...theme.shadow.primary
     },
     pressed: {

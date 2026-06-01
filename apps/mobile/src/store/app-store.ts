@@ -21,6 +21,7 @@ export type DigestListItem = {
   summary: string;
   source: string;
   publishedAt: string;
+  coverImageUrl?: string | null;
   isRead: boolean;
 };
 
@@ -36,12 +37,14 @@ export type AppState = {
   digestGroups: DigestGroup[];
   readCount: number;
   favoriteIds: string[];
+  isReaderOpen: boolean;
   themeMode: 'light' | 'dark';
   toggleDomainSelection: (id: DomainId) => void;
   addDismissedDomain: (id: DomainId) => void;
   setDigest: (groups: DigestGroup[]) => void;
   markItemRead: (itemId: string) => void;
   toggleFavorite: (itemId: string) => void;
+  setReaderOpen: (isOpen: boolean) => void;
   toggleThemeMode: () => Promise<void>;
   completeOnboarding: () => Promise<void>;
   clearCache: () => Promise<void>;
@@ -104,6 +107,7 @@ export function createAppStore(
     digestGroups: [],
     readCount: 0,
     favoriteIds: [],
+    isReaderOpen: false,
     themeMode: 'light',
     toggleDomainSelection: (id) => {
       set((state) => ({
@@ -150,6 +154,9 @@ export function createAppStore(
         return { favoriteIds: next };
       });
     },
+    setReaderOpen: (isOpen) => {
+      set({ isReaderOpen: isOpen });
+    },
     toggleThemeMode: async () => {
       const nextMode = get().themeMode === 'dark' ? 'light' : 'dark';
       await storage.saveThemeMode(nextMode);
@@ -176,6 +183,7 @@ export function createAppStore(
         digestGroups: [],
         readCount: 0,
         favoriteIds: [],
+        isReaderOpen: false,
         themeMode: 'light'
       });
     },

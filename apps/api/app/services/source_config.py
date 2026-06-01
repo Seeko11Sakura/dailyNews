@@ -1,4 +1,4 @@
-"""Source configuration for all 60 content sources across 3 domains.
+"""Source configuration for content sources across all user-facing domains.
 
 Each source is defined with metadata needed by the RSS fetcher or web scraper.
 Tier A = major, high-volume, reliable sources (prioritised in fetch).
@@ -190,6 +190,7 @@ TECHNOLOGY_SOURCES: list[SourceConfig] = [
         tier="C",
         source_type="rss",
         rss_url="https://www.cnblogs.com/rss",
+        active=False,
     ),
     SourceConfig(
         name="51CTO",
@@ -694,10 +695,318 @@ SOCIETY_SOURCES: list[SourceConfig] = [
 ]
 
 # ---------------------------------------------------------------------------
+# D) Extended user-interest domains
+# ---------------------------------------------------------------------------
+
+GADGETS_SOURCES: list[SourceConfig] = [
+    SourceConfig(
+        name="中关村在线",
+        url="https://news.zol.com.cn/",
+        domain_id="gadgets",
+        tier="A",
+        source_type="web",
+        css_selectors={
+            "article_list": "a[href*='news.zol.com.cn/']",
+            "title": "a",
+            "link": "a[href]",
+        },
+    ),
+    SourceConfig(
+        name="什么值得买",
+        url="https://www.smzdm.com/",
+        domain_id="gadgets",
+        tier="B",
+        source_type="web",
+        css_selectors={
+            "article_list": ".feed-row-wide a, .article-list a, .list a",
+            "title": "h5, h3, .title, a",
+            "link": "a[href]",
+        },
+    ),
+]
+
+BUSINESS_SOURCES: list[SourceConfig] = [
+    SourceConfig(
+        name="36氪（商业）",
+        url="https://36kr.com/",
+        domain_id="business",
+        tier="A",
+        source_type="rss",
+        rss_url="https://36kr.com/feed",
+    ),
+    SourceConfig(
+        name="虎嗅（商业）",
+        url="https://www.huxiu.com/",
+        domain_id="business",
+        tier="A",
+        source_type="rss",
+        rss_url="https://www.huxiu.com/rss/0.xml",
+    ),
+]
+
+FINANCE_SOURCES: list[SourceConfig] = [
+    SourceConfig(
+        name="第一财经（财经）",
+        url="https://www.yicai.com/",
+        domain_id="finance",
+        tier="A",
+        source_type="web",
+        css_selectors={
+            "article_list": ".news-list a, .article-item a, .m-list a",
+            "title": "h3, .title, a",
+            "link": "a[href]",
+        },
+    ),
+    SourceConfig(
+        name="财新（财经）",
+        url="https://www.caixin.com/",
+        domain_id="finance",
+        tier="B",
+        source_type="web",
+        css_selectors={
+            "article_list": ".news-list a, .article-list a, .list a",
+            "title": "h3, .title, a",
+            "link": "a[href]",
+        },
+    ),
+]
+
+CAREER_SOURCES: list[SourceConfig] = [
+    SourceConfig(
+        name="人人都是产品经理",
+        url="https://www.woshipm.com/",
+        domain_id="career",
+        tier="A",
+        source_type="rss",
+        rss_url="https://www.woshipm.com/feed",
+    ),
+    SourceConfig(
+        name="PMCAFF",
+        url="https://www.pmcaff.com/",
+        domain_id="career",
+        tier="B",
+        source_type="web",
+        css_selectors={
+            "article_list": ".article-item a, .post-list a, .list a",
+            "title": "h3, .title, a",
+            "link": "a[href]",
+        },
+    ),
+]
+
+EDUCATION_SOURCES: list[SourceConfig] = [
+    SourceConfig(
+        name="中国教育新闻网",
+        url="http://www.jyb.cn/",
+        domain_id="education",
+        tier="A",
+        source_type="web",
+        css_selectors={
+            "article_list": ".news-list a, .list a, .item a",
+            "title": "h3, .title, a",
+            "link": "a[href]",
+        },
+    ),
+    SourceConfig(
+        name="芥末堆",
+        url="https://www.jiemodui.com/",
+        domain_id="education",
+        tier="B",
+        source_type="web",
+        css_selectors={
+            "article_list": ".article-list a, .news-list a, .list a",
+            "title": "h3, .title, a",
+            "link": "a[href]",
+        },
+    ),
+]
+
+GAMES_SOURCES: list[SourceConfig] = [
+    SourceConfig(
+        name="机核",
+        url="https://www.gcores.com/articles",
+        domain_id="games",
+        tier="A",
+        source_type="web",
+        css_selectors={
+            "article_list": "a[href*='/articles/']",
+            "title": "a",
+            "link": "a[href]",
+        },
+    ),
+    SourceConfig(
+        name="游戏葡萄",
+        url="https://youxiputao.com/",
+        domain_id="games",
+        tier="B",
+        source_type="web",
+        css_selectors={
+            "article_list": ".article-list a, .post-list a, .list a",
+            "title": "h3, .title, a",
+            "link": "a[href]",
+        },
+    ),
+]
+
+MEDIA_SOURCES: list[SourceConfig] = [
+    SourceConfig(
+        name="1905电影网",
+        url="https://www.1905.com/news/",
+        domain_id="media",
+        tier="A",
+        source_type="web",
+        css_selectors={
+            "article_list": "a[href*='/news/202']",
+            "title": "a",
+            "link": "a[href]",
+        },
+    ),
+    SourceConfig(
+        name="娱乐资本论",
+        url="https://www.yulezibenlun.com/",
+        domain_id="media",
+        tier="B",
+        source_type="web",
+        css_selectors={
+            "article_list": ".article-list a, .post-list a, .list a",
+            "title": "h3, .title, a",
+            "link": "a[href]",
+        },
+    ),
+]
+
+HEALTH_SOURCES: list[SourceConfig] = [
+    SourceConfig(
+        name="丁香园",
+        url="https://www.dxy.cn/",
+        domain_id="health",
+        tier="A",
+        source_type="web",
+        css_selectors={
+            "article_list": ".article-list a, .news-list a, .list a",
+            "title": "h3, .title, a",
+            "link": "a[href]",
+        },
+    ),
+    SourceConfig(
+        name="39健康网",
+        url="https://www.39.net/",
+        domain_id="health",
+        tier="B",
+        source_type="web",
+        css_selectors={
+            "article_list": ".news-list a, .article-list a, .list a",
+            "title": "h3, .title, a",
+            "link": "a[href]",
+        },
+    ),
+]
+
+LIFESTYLE_SOURCES: list[SourceConfig] = [
+    SourceConfig(
+        name="下厨房",
+        url="https://www.xiachufang.com/explore/",
+        domain_id="lifestyle",
+        tier="A",
+        source_type="web",
+        active=False,
+        css_selectors={
+            "article_list": "a[href*='/recipe/']",
+            "title": "a",
+            "link": "a[href]",
+        },
+    ),
+    SourceConfig(
+        name="一条",
+        url="https://www.yitiao.tv/",
+        domain_id="lifestyle",
+        tier="B",
+        source_type="web",
+        css_selectors={
+            "article_list": ".article-list a, .post-list a, .list a",
+            "title": "h3, .title, a",
+            "link": "a[href]",
+        },
+    ),
+]
+
+# ---------------------------------------------------------------------------
 # Combined registry
 # ---------------------------------------------------------------------------
 
-ALL_SOURCES: list[SourceConfig] = TECHNOLOGY_SOURCES + AI_SOURCES + SOCIETY_SOURCES
+FIRST_BATCH_CRAWLER_SELECTORS: dict[str, dict[str, str]] = {
+    "IT之家": {
+        "article_list": "a[href*='/0/'], a[href*='ithome.com/html/']",
+        "title": "a",
+        "link": "a[href]",
+    },
+    "36氪": {
+        "article_list": "a[href*='/p/'], a[href*='36kr.com/newsflashes/']",
+        "title": "a",
+        "link": "a[href]",
+    },
+    "机器之心": {
+        "article_list": "a[href*='/articles/']",
+        "title": "a",
+        "link": "a[href]",
+    },
+    "量子位": {
+        "article_list": "a[href*='/archives/']",
+        "title": "a",
+        "link": "a[href]",
+    },
+    "36氪（商业）": {
+        "article_list": "a[href*='/p/'], a[href*='36kr.com/newsflashes/']",
+        "title": "a",
+        "link": "a[href]",
+    },
+}
+
+
+def _crawler_only_source(source: SourceConfig) -> SourceConfig:
+    """把第一批 RSS 来源转成网页爬虫来源，其余 RSS 来源暂时停用。"""
+    selectors = FIRST_BATCH_CRAWLER_SELECTORS.get(source.name)
+    if selectors:
+        return SourceConfig(
+            name=source.name,
+            url=source.url,
+            domain_id=source.domain_id,
+            tier=source.tier,
+            source_type="web",
+            active=True,
+            css_selectors=selectors,
+        )
+    if source.source_type == "rss":
+        return SourceConfig(
+            name=source.name,
+            url=source.url,
+            domain_id=source.domain_id,
+            tier=source.tier,
+            source_type=source.source_type,
+            rss_url=source.rss_url,
+            active=False,
+            css_selectors=source.css_selectors,
+        )
+    return source
+
+
+ALL_SOURCES: list[SourceConfig] = [
+    _crawler_only_source(source)
+    for source in (
+    TECHNOLOGY_SOURCES
+    + AI_SOURCES
+    + SOCIETY_SOURCES
+    + GADGETS_SOURCES
+    + BUSINESS_SOURCES
+    + FINANCE_SOURCES
+    + CAREER_SOURCES
+    + EDUCATION_SOURCES
+    + GAMES_SOURCES
+    + MEDIA_SOURCES
+    + HEALTH_SOURCES
+    + LIFESTYLE_SOURCES
+)
+]
 
 # Lookup helpers
 SOURCES_BY_NAME: dict[str, SourceConfig] = {s.name: s for s in ALL_SOURCES}

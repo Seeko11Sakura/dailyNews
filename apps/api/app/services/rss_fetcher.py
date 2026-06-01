@@ -10,6 +10,7 @@ import logging
 from datetime import datetime, timezone
 from time import mktime
 from typing import Any
+from urllib.parse import urljoin
 
 import feedparser
 
@@ -58,6 +59,59 @@ def _clean_html(raw: str | None) -> str:
     # Collapse whitespace
     text = re.sub(r"\s+", " ", text)
     return text[:500]  # Cap summary length
+
+
+def _normalise_image_url(raw_url: str | None, base_url: str) -> str:
+    """把 RSS 里的图片地址整理成可访问的完整 URL。"""
+    if not raw_url:
+        return ""
+    value = raw_url.strip()
+    if not value or value.startswith(("data:", "blob:", "javascript:")):
+        return ""
+    return urljoin(base_url, value)
+
+
+def _append_unique(items: list[str], value: str) -> None:
+    """追加不重复的图片地址。"""
+    if value and value not in items:
+        items.append(value)
+
+
+def _extract_entry_image_urls(entry: dict[str, Any], source: SourceConfig) -> list[str]:
+    """从 RSS 条目中提取封面图候选地址。"""
+    image_urls: list[str] = []
+
+    media_content = entry.get("media_content") or []
+    if isinstance(media_content, list):
+        for item in media_content:
+            if isinstance(item, dict):
+                _append_unique(
+                    image_urls,
+                    _normalise_image_url(str(item.get("url") or ""), source.url),
+                )
+
+    media_thumbnail = entry.get("media_thumbnail") or []
+    if isinstance(media_thumbnail, list):
+        for item in media_thumbnail:
+            if isinstance(item, dict):
+                _append_unique(
+                    image_urls,
+                    _normalise_image_url(str(item.get("url") or ""), source.url),
+                )
+
+    links = entry.get("links") or []
+    if isinstance(links, list):
+        for item in links:
+            if not isinstance(item, dict):
+                continue
+            content_type = str(item.get("type") or "")
+            if content_type.startswith("image/"):
+                _append_unique(
+                    image_urls,
+                    _normalise_image_url(str(item.get("href") or ""), source.url),
+                )
+
+    return image_urls[:10]
 
 
 def fetch_feed(source: SourceConfig) -> list[dict[str, Any]]:
@@ -114,6 +168,7 @@ def fetch_feed(source: SourceConfig) -> list[dict[str, Any]]:
                 "source_name": source.name,
                 "source_url": source.url,
                 "domain_id": source.domain_id,
+                "image_urls": _extract_entry_image_urls(entry, source),
             }
         )
 

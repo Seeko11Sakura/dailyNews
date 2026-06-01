@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "dailyNews",
+    "slug": "dailynews",
+    "version": "0.1.0",
+    "scheme": "dailynews",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "bundleIdentifier": "com.seekosakura.dailynews"
+    },
+    "android": {
+      "package": "com.seekosakura.dailynews",
+      "adaptiveIcon": {
+        "backgroundColor": "#f5fbff"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router"
+    ]
+  }
+}

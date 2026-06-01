@@ -31,6 +31,7 @@ class DigestItem(BaseModel):
     summary: str = Field(max_length=500)
     source: str
     published_at: str
+    cover_image_url: str | None = None
     is_read: bool = False
 
 

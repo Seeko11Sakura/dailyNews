@@ -27,8 +27,13 @@ type DockProps = {
 
 export function AppDock({ state, descriptors, navigation }: DockProps) {
   const themeMode = useAppStore((value) => value.themeMode);
+  const isReaderOpen = useAppStore((value) => value.isReaderOpen);
   const theme = getTheme(themeMode);
   const styles = createStyles(theme);
+
+  if (isReaderOpen) {
+    return null;
+  }
 
   return (
     <View style={styles.safeArea}>
@@ -124,11 +129,13 @@ function WandIcon({ active }: { active: boolean }) {
 function createStyles(theme: ReturnType<typeof getTheme>) {
   return StyleSheet.create({
     safeArea: {
-      position: 'absolute',
-      left: 20,
-      right: 20,
-      bottom: 18,
-      alignItems: 'center'
+      minHeight: 96,
+      paddingHorizontal: 20,
+      paddingTop: 8,
+      paddingBottom: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.color.background
     },
     dock: {
       width: '100%',

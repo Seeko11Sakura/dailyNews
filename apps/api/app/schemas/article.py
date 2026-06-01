@@ -7,4 +7,5 @@ class ArticleDetail(BaseModel):
     summary: str
     content: str
     source_url: str
+    cover_image_url: str | None = None
     fetch_status: str

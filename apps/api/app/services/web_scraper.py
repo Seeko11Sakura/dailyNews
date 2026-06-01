@@ -11,11 +11,12 @@ import logging
 import re
 import time
 from typing import Any
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 import httpx
 from bs4 import BeautifulSoup, Tag
 
+from app.services.article_quality import is_valid_article_candidate
 from app.services.source_config import SourceConfig
 
 logger = logging.getLogger(__name__)
@@ -87,14 +88,6 @@ def _parse_articles_from_html(
             # The container itself might be the link.
             link_el = container if container.name == "a" else None
 
-        link = _extract_link(link_el, source.url)
-        if not link or link in seen_links:
-            continue
-        # Skip anchor-only and javascript links.
-        if link.startswith("#") or link.startswith("javascript:"):
-            continue
-        seen_links.add(link)
-
         # Find the title element.
         title_el = container.select_one(title_sel)
         title = _extract_text(title_el)
@@ -103,6 +96,21 @@ def _parse_articles_from_html(
             title = _extract_text(container if container.name == "a" else link_el)
         if not title or len(title) < 4:
             continue
+
+        link = _extract_link(link_el, source.url)
+        if not link or link in seen_links:
+            continue
+        # Skip anchor-only and javascript links.
+        if link.startswith("#") or link.startswith("javascript:"):
+            continue
+        if not _looks_like_article_link(link, title, source.url):
+            continue
+        if not is_valid_article_candidate(
+            {"title": title, "link": link},
+            source.domain_id,
+        ):
+            continue
+        seen_links.add(link)
 
         articles.append(
             {
@@ -115,6 +123,100 @@ def _parse_articles_from_html(
                 "domain_id": source.domain_id,
             }
         )
+
+    return articles
+
+
+def _looks_like_article_link(link: str, title: str, source_url: str) -> bool:
+    """判断一个普通链接是否像文章链接。"""
+    if len(title) < 6:
+        return False
+
+    parsed = urlparse(link)
+    source_host = urlparse(source_url).netloc.removeprefix("www.")
+    link_host = parsed.netloc.removeprefix("www.")
+    if source_host and link_host and source_host != link_host:
+        return False
+
+    path = parsed.path.lower()
+    if not path or path in {"/", "#"}:
+        return False
+    if any(
+        blocked in path
+        for blocked in (
+            "login",
+            "register",
+            "signup",
+            "search",
+            "sitemap",
+            "tag/",
+            "tags/",
+            "about",
+            "contact",
+            "video",
+            ".jpg",
+            ".png",
+            ".gif",
+            ".css",
+            ".js",
+        )
+    ):
+        return False
+
+    article_markers = (
+        "article",
+        "articles",
+        "news",
+        "post",
+        "detail",
+        "story",
+        "content",
+        "item",
+        "/p/",
+        "recipe",
+        "202",
+    )
+    return any(marker in path for marker in article_markers) or bool(
+        re.search(r"/\d{5,}", path)
+        or re.search(r"/\d+/\d+/\d+\.html?$", path)
+    )
+
+
+def _parse_article_links_fallback(
+    html: str,
+    source: SourceConfig,
+) -> list[dict[str, Any]]:
+    """专用选择器失效时，从页面所有链接里兜底识别文章。"""
+    soup = BeautifulSoup(html, "html.parser")
+    articles: list[dict[str, Any]] = []
+    seen_links: set[str] = set()
+    for anchor in soup.select("a[href]"):
+        link = _extract_link(anchor, source.url)
+        title = _extract_text(anchor)
+        if not link or link in seen_links:
+            continue
+        if not _looks_like_article_link(link, title, source.url):
+            continue
+        if not is_valid_article_candidate(
+            {"title": title, "link": link},
+            source.domain_id,
+        ):
+            continue
+
+        seen_links.add(link)
+        articles.append(
+            {
+                "title": title,
+                "link": link,
+                "summary": "",
+                "published_at": None,
+                "source_name": source.name,
+                "source_url": source.url,
+                "domain_id": source.domain_id,
+            }
+        )
+        if len(articles) >= 30:
+            break
 
     return articles
 
@@ -154,6 +256,8 @@ async def scrape_source(
         response.raise_for_status()
 
         articles = _parse_articles_from_html(response.text, source)
+        if not articles:
+            articles = _parse_article_links_fallback(response.text, source)
         logger.info("Scraped %d articles from %s", len(articles), source.name)
         return articles
 

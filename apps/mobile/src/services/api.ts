@@ -5,6 +5,7 @@ type ApiDigestItem = {
   summary: string;
   source: string;
   published_at: string;
+  cover_image_url?: string | null;
   is_read: boolean;
 };
 
@@ -23,15 +24,25 @@ export type ArticleDetail = {
   summary: string;
   content: string;
   source_url: string;
+  cover_image_url?: string | null;
   fetch_status: string;
 };
 
-export const API_BASE_URL = 'http://192.168.31.154:8000';
+export const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://192.168.31.154:8001';
+
+function getLocalDateString() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = `${now.getMonth() + 1}`.padStart(2, '0');
+  const day = `${now.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 
 export async function fetchTodayDigest(
   selectedDomains: string[]
 ): Promise<ApiDigestResponse> {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalDateString();
   const response = await fetch(`${API_BASE_URL}/digest/today`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -75,7 +86,7 @@ export async function fetchExploreCards(
   dismissedDomains: string[] = [],
   seenDomainIds: string[] = []
 ): Promise<ExploreResponse> {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalDateString();
   const response = await fetch(`${API_BASE_URL}/explore/draw`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

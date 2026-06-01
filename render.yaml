@@ -1,0 +1,63 @@
+services:
+  - type: web
+    name: dailynews-api
+    runtime: python
+    rootDir: apps/api
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DISABLE_DAILY_DIGEST_SCHEDULER
+        value: "1"
+      - key: SOURCE_FETCH_CONCURRENCY
+        value: "4"
+      - key: SOURCE_FETCH_TIMEOUT_SECONDS
+        value: "60"
+      - key: SOURCE_ARTICLE_LIMIT
+        value: "10"
+      - key: DAILY_IMAGE_BACKFILL_LIMIT
+        value: "30"
+      - key: ARTICLE_IMAGE_BUCKET
+        value: article-images
+      - key: AI_BASE_URL
+        value: https://token-plan-cn.xiaomimimo.com/v1
+      - key: AI_MODEL
+        value: mimo-v2.5-pro
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: AI_API_KEY
+        sync: false
+
+  - type: cron
+    name: dailynews-digest-cron
+    runtime: python
+    rootDir: apps/api
+    schedule: "0 0 * * *"
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m app.scripts.run_daily_digest_once
+    envVars:
+      - key: SOURCE_FETCH_CONCURRENCY
+        value: "4"
+      - key: SOURCE_FETCH_TIMEOUT_SECONDS
+        value: "60"
+      - key: SOURCE_ARTICLE_LIMIT
+        value: "10"
+      - key: DAILY_IMAGE_BACKFILL_LIMIT
+        value: "30"
+      - key: ARTICLE_IMAGE_BUCKET
+        value: article-images
+      - key: AI_BASE_URL
+        value: https://token-plan-cn.xiaomimimo.com/v1
+      - key: AI_MODEL
+        value: mimo-v2.5-pro
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: AI_API_KEY
+        sync: false

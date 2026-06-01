@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AnimatedPressable } from '../../components/AnimatedPressable';
 import { fetchItemDetail, type ArticleDetail } from '../../services/api';
 import { getTheme } from '../../theme/tokens';
@@ -44,6 +44,11 @@ export function ReaderModal({ visible, itemId, onClose, theme }: ReaderModalProp
   }
 
   const styles = createStyles(theme);
+  const bodyContent =
+    article?.content && article.content.trim() !== article.summary.trim()
+      ? article.content
+      : '';
+  const bodyParagraphs = splitArticleParagraphs(bodyContent);
 
   return (
     <View accessibilityViewIsModal style={styles.overlay}>
@@ -69,10 +74,26 @@ export function ReaderModal({ visible, itemId, onClose, theme }: ReaderModalProp
         {article ? (
           <View>
             <Text style={styles.title}>{article.title}</Text>
+            {article.cover_image_url ? (
+              <Image
+                accessibilityLabel="阅读页文章封面图"
+                source={{ uri: article.cover_image_url }}
+                style={styles.coverImage}
+                resizeMode="cover"
+              />
+            ) : null}
             <View style={styles.summaryBox}>
               <Text style={styles.summary}>{article.summary}</Text>
             </View>
-            <Text style={styles.body}>{article.content}</Text>
+            {bodyParagraphs.length > 0 ? (
+              <View style={styles.body}>
+                {bodyParagraphs.map((paragraph, index) => (
+                  <Text key={`${index}-${paragraph.slice(0, 12)}`} style={styles.bodyText}>
+                    {paragraph}
+                  </Text>
+                ))}
+              </View>
+            ) : null}
             <AnimatedPressable
               onPress={() => void Linking.openURL(article.source_url)}
               accessibilityLabel="打开原文站点"
@@ -87,6 +108,13 @@ export function ReaderModal({ visible, itemId, onClose, theme }: ReaderModalProp
       </ScrollView>
     </View>
   );
+}
+
+function splitArticleParagraphs(content: string): string[] {
+  return content
+    .split(/\n{2,}/)
+    .map((paragraph) => paragraph.replace(/\s*\n\s*/g, ' ').trim())
+    .filter(Boolean);
 }
 
 function createStyles(theme: ReturnType<typeof getTheme>) {
@@ -147,6 +175,13 @@ function createStyles(theme: ReturnType<typeof getTheme>) {
     fontWeight: '800',
     marginBottom: theme.space.xl
   },
+  coverImage: {
+    width: '100%',
+    height: 172,
+    borderRadius: theme.radius.lg,
+    backgroundColor: theme.color.surfaceInner,
+    marginBottom: theme.space.xl
+  },
   summaryBox: {
     padding: theme.space.lg,
     borderRadius: theme.radius.lg,
@@ -162,10 +197,14 @@ function createStyles(theme: ReturnType<typeof getTheme>) {
     fontWeight: '600'
   },
   body: {
+    marginBottom: theme.space.xl
+  },
+  bodyText: {
     color: theme.color.muted,
     fontSize: 17,
     lineHeight: 30,
-    fontWeight: '500'
+    fontWeight: '600',
+    marginBottom: theme.space.lg
   },
   sourceButton: {
     minHeight: 56,

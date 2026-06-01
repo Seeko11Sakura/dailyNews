@@ -1,9 +1,14 @@
+"""后端接口入口，连接今日简报、抓取、图片和来源试跑服务。"""
+
 from typing import Any
 
-from fastapi import APIRouter, Query
+import asyncio
+import httpx
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
 from app.schemas.article import ArticleDetail
+from app.schemas.crawler import ArticleCrawlRequest, ArticleCrawlResponse
 from app.schemas.digest import DigestRequest, DigestResponse
 from app.schemas.domain import Domain
 from app.schemas.explore import ExploreRequest, ExploreResponse
@@ -13,13 +18,21 @@ from app.services.content_pipeline import (
     get_fetch_status,
     get_fetch_status_for_source,
 )
+from app.services.ai_overview import backfill_missing_ai_overviews
+from app.services.article_crawler import crawl_article
+from app.services.article_image_backfill import backfill_article_images
+from app.services.daily_digest_job import (
+    get_daily_digest_status,
+    start_manual_digest_generation,
+)
 from app.services.mock_repository import (
     get_article_detail,
     get_today_digest,
     list_domains,
 )
 from app.services.explore_service import get_explore_cards as get_explore_cards_real
-from app.services.source_config import get_active_sources
+from app.services.source_config import SourceConfig, get_active_sources
+from app.services.web_scraper import scrape_source
 
 router = APIRouter()
 
@@ -44,6 +57,19 @@ def get_item(item_id: str) -> ArticleDetail:
     return get_article_detail(item_id)
 
 
+@router.post("/crawl/article", response_model=ArticleCrawlResponse)
+def crawl_article_preview(payload: ArticleCrawlRequest) -> ArticleCrawlResponse:
+    """抓取单篇文章的标题、正文和图片地址，用于验证爬虫效果。"""
+    try:
+        result = crawl_article(payload.url)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"文章抓取失败：{exc}") from exc
+
+    return ArticleCrawlResponse(**result)
+
+
 @router.post("/explore/draw", response_model=ExploreResponse)
 def draw_explore_cards(payload: ExploreRequest) -> ExploreResponse:
     return get_explore_cards_real(payload)
@@ -65,6 +91,33 @@ class FetchTriggerRequest(BaseModel):
     source_name: str | None = None  # None = fetch all sources
     domain_id: str | None = None  # Filter by domain (only when source_name is None)
     tier: str | None = None  # Filter by tier (only when source_name is None)
+
+
+class OverviewBackfillRequest(BaseModel):
+    """Request body for POST /overview/backfill."""
+
+    domain_id: str | None = None
+    limit: int = 20
+    force: bool = False
+
+
+class ImageBackfillRequest(BaseModel):
+    """POST /images/backfill 的请求参数。"""
+
+    domain_id: str | None = None
+    date: str | None = None
+    limit: int = 20
+
+
+class SourceTrialRequest(BaseModel):
+    """POST /sources/trial 的请求参数。"""
+
+    url: str
+    name: str = "临时来源"
+    domain_id: str = "technology"
+    tier: str = "C"
+    limit: int = 5
+    css_selectors: dict[str, str] | None = None
 
 
 @router.post("/fetch/trigger")
@@ -132,6 +185,18 @@ async def fetch_status(
     return summary
 
 
+@router.post("/digest/generate")
+async def generate_today_digest() -> dict[str, Any]:
+    """Manual trigger for today's scheduled digest generation."""
+    return start_manual_digest_generation()
+
+
+@router.get("/digest/job/status")
+async def daily_digest_status() -> dict[str, Any]:
+    """Return daily digest job status."""
+    return get_daily_digest_status()
+
+
 @router.get("/fetch/sources")
 async def list_sources(
     domain_id: str | None = Query(None, description="Filter by domain"),
@@ -156,3 +221,73 @@ async def list_sources(
         }
         for s in sources
     ]
+
+
+@router.post("/sources/trial")
+async def trial_source(payload: SourceTrialRequest) -> dict[str, Any]:
+    """试跑一个网页来源，返回候选文章和少量详情预览。"""
+    source = SourceConfig(
+        name=payload.name,
+        url=payload.url,
+        domain_id=payload.domain_id,
+        tier=payload.tier,
+        source_type="web",
+        css_selectors=payload.css_selectors or {},
+    )
+
+    candidates = await scrape_source(source)
+    limited_candidates = candidates[: max(1, payload.limit)]
+    previews: list[dict[str, Any]] = []
+    for candidate in limited_candidates[:3]:
+        try:
+            preview = await asyncio.to_thread(crawl_article, candidate["link"])
+        except Exception as exc:
+            previews.append(
+                {
+                    "url": candidate["link"],
+                    "title": candidate.get("title", ""),
+                    "ok": False,
+                    "error": str(exc),
+                }
+            )
+            continue
+
+        previews.append(
+            {
+                "url": preview.get("url", candidate["link"]),
+                "title": preview.get("title") or candidate.get("title", ""),
+                "published_at": preview.get("published_at", ""),
+                "content_length": preview.get("content_length", 0),
+                "image_count": len(preview.get("image_urls") or []),
+                "ok": True,
+            }
+        )
+
+    return {
+        "source": source.name,
+        "url": source.url,
+        "candidate_count": len(candidates),
+        "candidates": limited_candidates,
+        "previews": previews,
+    }
+
+
+@router.post("/overview/backfill")
+async def backfill_overviews(payload: OverviewBackfillRequest) -> dict[str, Any]:
+    """Backfill missing AI overviews for existing articles."""
+    return await backfill_missing_ai_overviews(
+        domain_id=payload.domain_id,
+        limit=payload.limit,
+        force=payload.force,
+    )
+
+
+@router.post("/images/backfill")
+async def backfill_images(payload: ImageBackfillRequest) -> dict[str, Any]:
+    """补齐缺失的文章封面图。"""
+    return await asyncio.to_thread(
+        backfill_article_images,
+        domain_id=payload.domain_id,
+        published_date=payload.date,
+        limit=payload.limit,
+    )

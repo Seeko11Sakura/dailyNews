@@ -1,18 +1,22 @@
-"""Content pipeline — orchestrates fetching from all sources and stores articles.
-
-Coordinates RSS fetching and web scraping, deduplicates via URL hash,
-persists to Supabase, and tracks per-source fetch status.
-"""
+"""内容采集流水线：从网页来源抓取文章候选，补全文、分类后写入数据库。"""
 
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+import os
+import asyncio
+from datetime import datetime, time, timedelta, timezone
 from typing import Any
 
 from app.repositories.base import get_supabase
 from app.services.ai_overview import generate_ai_overview
-from app.services.rss_fetcher import fetch_feed
+from app.services.article_classifier import classify_article_domain
+from app.services.article_crawler import crawl_article
+from app.services.article_quality import (
+    is_valid_article_candidate,
+    should_replace_title,
+)
+from app.services.image_storage import store_article_images
 from app.services.source_config import (
     SOURCES_BY_NAME,
     SourceConfig,
@@ -23,15 +27,176 @@ from app.services.url_normalizer import url_hash
 from app.services.web_scraper import scrape_source
 
 logger = logging.getLogger(__name__)
+LOCAL_TZ = timezone(timedelta(hours=8))
 
 # In-memory fetch status tracker (source_name -> last fetch metadata).
 _fetch_status: dict[str, dict[str, Any]] = {}
+
+
+def _source_fetch_concurrency() -> int:
+    """读取来源并发数，避免 78 个来源顺序阻塞。"""
+    raw_value = os.getenv("SOURCE_FETCH_CONCURRENCY", "8")
+    try:
+        return max(1, int(raw_value))
+    except ValueError:
+        return 4
+
+
+def _source_fetch_timeout_seconds() -> float:
+    """读取单个来源抓取超时时间。"""
+    raw_value = os.getenv("SOURCE_FETCH_TIMEOUT_SECONDS", "60")
+    try:
+        return max(10.0, float(raw_value))
+    except ValueError:
+        return 60.0
+
+
+def _source_article_limit() -> int:
+    """读取每个来源单次最多处理的文章数。"""
+    raw_value = os.getenv("SOURCE_ARTICLE_LIMIT", "10")
+    try:
+        return max(1, int(raw_value))
+    except ValueError:
+        return 10
+
+
+def _fallback_published_at(now: str) -> str:
+    """没有发布时间时，按简报窗口给文章补一个可展示时间。"""
+    current = datetime.fromisoformat(now).astimezone(LOCAL_TZ)
+    if current.time() < time(hour=8):
+        previous_day_end = datetime.combine(
+            current.date(),
+            time.min,
+            tzinfo=LOCAL_TZ,
+        ) - timedelta(minutes=1)
+        return previous_day_end.astimezone(timezone.utc).isoformat()
+    return now
 
 
 def _is_missing_ai_overview_column(exc: Exception) -> bool:
     """判断 Supabase 是否还没有执行 ai_overview 字段迁移。"""
     message = str(exc)
     return "ai_overview" in message and "42703" in message
+
+
+def _is_missing_optional_article_column(exc: Exception) -> bool:
+    """判断 Supabase 是否缺少可选的文章增强字段。"""
+    message = str(exc)
+    is_schema_error = (
+        "42703" in message
+        or "PGRST204" in message
+        or "Could not find" in message
+    )
+    return is_schema_error and bool(_optional_columns_to_remove(message))
+
+
+def _optional_columns_to_remove(message: str) -> set[str]:
+    """根据数据库错误判断需要移除哪些可选字段。"""
+    columns: set[str] = set()
+    if "ai_overview" in message:
+        columns.add("ai_overview")
+    if "source_domain_id" in message or "classification_reason" in message:
+        columns.update({"source_domain_id", "classification_reason"})
+    if "cover_image_url" in message:
+        columns.add("cover_image_url")
+    return columns
+
+
+def _insert_article_row(supabase: Any, row: dict[str, Any]) -> Any:
+    """插入文章，旧库缺少可选字段时自动降级重试。"""
+    insert_row = dict(row)
+    for _ in range(4):
+        try:
+            return supabase.table("articles").insert(insert_row).execute()
+        except Exception as exc:
+            if not _is_missing_optional_article_column(exc):
+                raise
+            for column in _optional_columns_to_remove(str(exc)):
+                insert_row.pop(column, None)
+    return supabase.table("articles").insert(insert_row).execute()
+
+
+def _update_article_row(supabase: Any, article_id: str, row: dict[str, Any]) -> Any:
+    """更新已存在文章，旧库缺少可选字段时自动降级重试。"""
+    update_row = dict(row)
+    for _ in range(4):
+        try:
+            return (
+                supabase.table("articles")
+                .update(update_row)
+                .eq("id", article_id)
+                .execute()
+            )
+        except Exception as exc:
+            if not _is_missing_optional_article_column(exc):
+                raise
+            for column in _optional_columns_to_remove(str(exc)):
+                update_row.pop(column, None)
+    return supabase.table("articles").update(update_row).eq("id", article_id).execute()
+
+
+def _should_crawl_article_images() -> bool:
+    """判断是否在入库后补抓原文图片。"""
+    value = os.getenv("ARTICLE_IMAGE_CRAWL_ENABLED", "false").lower()
+    return value not in {"0", "false", "no"}
+
+
+def _inserted_article_id(result: Any) -> str:
+    """从 Supabase 插入结果中读取文章 ID。"""
+    data = getattr(result, "data", None)
+    if isinstance(data, list) and data:
+        article_id = data[0].get("id")
+        return str(article_id or "")
+    return ""
+
+
+def _resolve_article_image_urls(article: dict[str, Any]) -> list[str]:
+    """优先使用已有图片地址，没有时再打开原文页补抓。"""
+    image_urls = article.get("image_urls") or []
+    if image_urls:
+        return list(image_urls)
+
+    source_url = article.get("source_url")
+    if not source_url or not _should_crawl_article_images():
+        return []
+
+    try:
+        preview = crawl_article(source_url)
+    except Exception as exc:
+        logger.warning("Failed to crawl article images from %s: %s", source_url, exc)
+        return []
+
+    preview_urls = preview.get("image_urls") or []
+    return list(preview_urls) if isinstance(preview_urls, list) else []
+
+
+def _store_images_for_article(
+    supabase: Any,
+    article_id: str,
+    article: dict[str, Any],
+) -> None:
+    """保存文章图片，并把第一张图写回文章封面。"""
+    if not article_id:
+        return
+
+    image_urls = _resolve_article_image_urls(article)
+    if not image_urls:
+        return
+
+    records = store_article_images(article_id, image_urls, supabase=supabase)
+    if not records:
+        return
+
+    cover_url = records[0].get("public_url")
+    if not cover_url:
+        return
+
+    try:
+        supabase.table("articles").update({"cover_image_url": cover_url}).eq(
+            "id", article_id
+        ).execute()
+    except Exception as exc:
+        logger.warning("Failed to update article cover image %s: %s", article_id, exc)
 
 
 # ---------------------------------------------------------------------------
@@ -64,6 +229,39 @@ def enrich_article(article: dict[str, Any]) -> dict[str, Any]:
     return enriched
 
 
+def enrich_article_with_crawler(article: dict[str, Any]) -> dict[str, Any]:
+    """打开原文页补充完整正文和图片地址。"""
+    source_url = article.get("source_url")
+    if not source_url:
+        return article
+
+    try:
+        preview = crawl_article(source_url)
+    except Exception as exc:
+        logger.warning("Failed to enrich article from %s: %s", source_url, exc)
+        return article
+
+    enriched = dict(article)
+    crawled_title = str(preview.get("title") or "")
+    if should_replace_title(str(enriched.get("title") or ""), crawled_title):
+        enriched["title"] = crawled_title
+
+    crawled_content = str(preview.get("content") or "")
+    current_content = str(enriched.get("content") or "")
+    if len(crawled_content) > len(current_content):
+        enriched["content"] = crawled_content
+
+    image_urls = preview.get("image_urls") or []
+    if isinstance(image_urls, list) and image_urls:
+        enriched["image_urls"] = image_urls
+
+    crawled_published_at = preview.get("published_at")
+    if crawled_published_at:
+        enriched["published_at"] = crawled_published_at
+
+    return enriched
+
+
 async def filter_new_articles(articles: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Filter out articles whose normalized URL already exists in the database.
 
@@ -78,17 +276,20 @@ async def filter_new_articles(articles: list[dict[str, Any]]) -> list[dict[str, 
     hashes = [url_hash(a["source_url"]) for a in articles]
     existing = (
         supabase.table("articles")
-        .select("url_hash")
+        .select("id, url_hash")
         .in_("url_hash", hashes)
         .execute()
     )
-    existing_hashes = {row["url_hash"] for row in existing.data}
+    existing_by_hash = {row["url_hash"]: row["id"] for row in existing.data}
 
-    return [
-        enrich_article(a)
-        for a in articles
-        if url_hash(a["source_url"]) not in existing_hashes
-    ]
+    enriched_articles: list[dict[str, Any]] = []
+    for article in articles:
+        enriched = enrich_article(article)
+        existing_id = existing_by_hash.get(enriched["url_hash"])
+        if existing_id:
+            enriched["existing_article_id"] = existing_id
+        enriched_articles.append(enriched)
+    return enriched_articles
 
 
 async def process_fetched_articles(
@@ -105,7 +306,13 @@ async def process_fetched_articles(
     added.  Callers should only insert articles where `is_duplicate == False`.
     """
     new_articles = await filter_new_articles(articles)
-    return fold_similar_titles(new_articles)
+    enriched_articles = await asyncio.gather(
+        *[
+            asyncio.to_thread(enrich_article_with_crawler, article)
+            for article in new_articles
+        ]
+    )
+    return fold_similar_titles(enriched_articles)
 
 
 async def insert_articles(articles: list[dict[str, Any]]) -> int:
@@ -127,8 +334,16 @@ async def insert_articles(articles: list[dict[str, Any]]) -> int:
         if article.get("is_duplicate", False):
             continue
 
+        source_domain_id = article.get("source_domain_id") or article.get("domain_id", "")
+        classification = await classify_article_domain(
+            {**article, "source_domain_id": source_domain_id}
+        )
+        classified_domain_id = classification["domain_id"]
+
         row = {
-            "domain_id": article.get("domain_id", ""),
+            "domain_id": classified_domain_id,
+            "source_domain_id": source_domain_id,
+            "classification_reason": classification.get("reason", ""),
             "title": article["title"],
             "summary": article.get("summary", ""),
             "ai_overview": article.get("ai_overview")
@@ -149,15 +364,16 @@ async def insert_articles(articles: list[dict[str, Any]]) -> int:
             row["published_at"] = published.isoformat()
 
         try:
-            supabase.table("articles").insert(row).execute()
+            existing_article_id = str(article.get("existing_article_id") or "")
+            if existing_article_id:
+                _update_article_row(supabase, existing_article_id, row)
+                article_id = existing_article_id
+            else:
+                result = _insert_article_row(supabase, row)
+                article_id = _inserted_article_id(result)
+            await asyncio.to_thread(_store_images_for_article, supabase, article_id, article)
             inserted += 1
         except Exception as exc:
-            if _is_missing_ai_overview_column(exc):
-                row_without_ai = dict(row)
-                row_without_ai.pop("ai_overview", None)
-                supabase.table("articles").insert(row_without_ai).execute()
-                inserted += 1
-                continue
             logger.exception(
                 "Failed to insert article: %s", row.get("source_url", "unknown")
             )
@@ -200,12 +416,14 @@ async def fetch_source(source_name: str) -> dict[str, Any]:
     now = datetime.now(timezone.utc).isoformat()
 
     try:
-        if source.source_type == "rss":
-            raw_articles = fetch_feed(source)
-        else:
-            raw_articles = await scrape_source(source)
+        raw_articles = await scrape_source(source)
+        raw_articles = [
+            article
+            for article in raw_articles
+            if is_valid_article_candidate(article, source.domain_id)
+        ][:_source_article_limit()]
 
-        # Convert RSS fetcher output format to pipeline format.
+        # 列表页只提供候选链接，详情页会在后续步骤补齐正文、图片和发布时间。
         normalised: list[dict[str, Any]] = []
         for a in raw_articles:
             normalised.append(
@@ -216,7 +434,8 @@ async def fetch_source(source_name: str) -> dict[str, Any]:
                     "content": a.get("summary", ""),
                     "source_name": a.get("source_name", source.name),
                     "domain_id": a.get("domain_id", source.domain_id),
-                    "published_at": a.get("published_at"),
+                    "published_at": a.get("published_at") or _fallback_published_at(now),
+                    "image_urls": a.get("image_urls", []),
                 }
             )
 
@@ -283,10 +502,33 @@ async def fetch_all_sources(
     if tier:
         sources = [s for s in sources if s.tier == tier]
 
-    results: list[dict[str, Any]] = []
-    for source in sources:
-        result = await fetch_source(source.name)
-        results.append(result)
+    semaphore = asyncio.Semaphore(_source_fetch_concurrency())
+    timeout_seconds = _source_fetch_timeout_seconds()
+
+    async def fetch_with_limit(source: SourceConfig) -> dict[str, Any]:
+        """带并发限制和超时保护地抓取单个来源。"""
+        async with semaphore:
+            try:
+                return await asyncio.wait_for(
+                    fetch_source(source.name),
+                    timeout=timeout_seconds,
+                )
+            except TimeoutError:
+                status = {
+                    "source": source.name,
+                    "domain_id": source.domain_id,
+                    "tier": source.tier,
+                    "source_type": source.source_type,
+                    "status": "error",
+                    "articles_fetched": 0,
+                    "articles_inserted": 0,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "error": f"Source fetch timed out after {timeout_seconds:.0f}s",
+                }
+                _fetch_status[source.name] = status
+                return status
+
+    results = await asyncio.gather(*[fetch_with_limit(source) for source in sources])
 
     success_count = sum(1 for r in results if r["status"] == "success")
     error_count = sum(1 for r in results if r["status"] == "error")

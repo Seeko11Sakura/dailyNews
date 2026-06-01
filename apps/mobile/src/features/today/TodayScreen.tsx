@@ -24,6 +24,7 @@ function mapDigestGroups(
       summary: string;
       source: string;
       published_at: string;
+      cover_image_url?: string | null;
       is_read: boolean;
     }>;
   }>
@@ -37,6 +38,7 @@ function mapDigestGroups(
       summary: item.summary,
       source: item.source,
       publishedAt: item.published_at,
+      coverImageUrl: item.cover_image_url,
       isRead: item.is_read
     }))
   }));
@@ -56,6 +58,7 @@ export function TodayScreen({ store }: TodayScreenProps) {
   const toggleThemeMode = useAppStore((state) => state.toggleThemeMode, store);
   const setDigest = useAppStore((state) => state.setDigest, store);
   const markItemRead = useAppStore((state) => state.markItemRead, store);
+  const setReaderOpen = useAppStore((state) => state.setReaderOpen, store);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
@@ -87,6 +90,7 @@ export function TodayScreen({ store }: TodayScreenProps) {
   );
   const readDomains = useMemo(() => countReadDomains(digestGroups), [digestGroups]);
   const allDone = totalCount > 0 && readCount === totalCount;
+  const isDigestEmpty = digestGroups.length > 0 && totalCount === 0;
 
   const handleItemRead = useCallback(
     (itemId: string) => {
@@ -99,8 +103,9 @@ export function TodayScreen({ store }: TodayScreenProps) {
     (itemId: string) => {
       markItemRead(itemId);
       setActiveItemId(itemId);
+      setReaderOpen(true);
     },
-    [markItemRead]
+    [markItemRead, setReaderOpen]
   );
 
   const handleDomainChange = useCallback((index: number) => {
@@ -193,6 +198,13 @@ export function TodayScreen({ store }: TodayScreenProps) {
             极简阅读，保持清醒。去享受真实的生活吧。
           </Text>
         </View>
+      ) : isDigestEmpty ? (
+        <View style={styles.stateCard}>
+          <Text style={styles.stateTitle}>今日简报正在生成</Text>
+          <Text style={styles.stateText}>
+            系统会在每天 8 点抓取当天资讯并生成 AI 概览，请稍后刷新。
+          </Text>
+        </View>
       ) : (
         <DomainPager
           domains={pagerData}
@@ -206,7 +218,10 @@ export function TodayScreen({ store }: TodayScreenProps) {
       <ReaderModal
         visible={activeItemId !== null}
         itemId={activeItemId}
-        onClose={() => setActiveItemId(null)}
+        onClose={() => {
+          setActiveItemId(null);
+          setReaderOpen(false);
+        }}
         theme={theme}
       />
     </View>
