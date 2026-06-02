@@ -21,6 +21,13 @@
     },
     "plugins": [
       "expo-router"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "3f1c20ef-ab0c-4825-99b7-f1b3a5b1e124"
+      }
+    },
+    "owner": "yunduobread"
   }
 }
